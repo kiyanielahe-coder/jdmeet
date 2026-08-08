@@ -1,21 +1,62 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 type Props = {
   open: boolean;
+  room?: any;
   onClose: () => void;
   onCreate: (room: {
-    title: string;
-    type: string;
-    password: string;
-    allowGuest: boolean;
-  }) => void;
+  title: string;
+  teacher: string;
+  date: string;
+  time: string;
+  type: string;
+  password: string;
+  allowGuest: boolean;
+
+  status: string;
+  guestCode: string;
+  memberAccess: string;
+  autoRecord: boolean;
+}) => void;
 };
 
-function CreateRoomModal({ open, onClose, onCreate }: Props) {
+function CreateRoomModal({
+  open,
+  room,
+  onClose,
+  onCreate,
+}: Props) {
   const [title, setTitle] = useState("");
   const [type, setType] = useState("آموزشی");
   const [allowGuest, setAllowGuest] = useState(true);
 const [password, setPassword] = useState("");
+const [teacher, setTeacher] = useState("");
+const [date, setDate] = useState("");
+const [time, setTime] = useState("");
+const [status, setStatus] = useState("فعال");
+
+const [guestCode, setGuestCode] = useState("");
+
+const [memberAccess, setMemberAccess] =
+  useState("participant");
+
+const [autoRecord, setAutoRecord] =
+  useState(false);
+useEffect(() => {
+  if (room) {
+    setTitle(room.title || "");
+    setTeacher(room.teacher || "");
+    setDate(room.date || "");
+    setTime(room.time || "");
+    setType(room.type || "آموزشی");
+    setPassword(room.password || "");
+    setAllowGuest(room.allowGuest ?? true);
+    setStatus(room.status ?? "فعال");
+setGuestCode(room.guestCode ?? "");
+setMemberAccess(room.memberAccess ?? "participant");
+setAutoRecord(room.autoRecord ?? false);
+  }
+}, [room]);
 
   if (!open) return null;
 
@@ -38,7 +79,7 @@ const [password, setPassword] = useState("");
           padding: 25,
         }}
       >
-        <h2>ایجاد اتاق جدید</h2>
+       <h2>{room ? "ویرایش رویداد" : "ایجاد رویداد جدید"}</h2>
 
         <input
           placeholder="نام اتاق"
@@ -51,7 +92,36 @@ const [password, setPassword] = useState("");
             marginBottom: 15,
           }}
         />
-
+        <input
+  type="date"
+  value={date}
+  onChange={(e) => setDate(e.target.value)}
+  style={{
+    width: "100%",
+    padding: 10,
+    marginBottom: 15,
+  }}
+/>
+<input
+  type="time"
+  value={time}
+  onChange={(e) => setTime(e.target.value)}
+  style={{
+    width: "100%",
+    padding: 10,
+    marginBottom: 15,
+  }}
+/>
+<input
+  placeholder="نام مدرس"
+  value={teacher}
+  onChange={(e) => setTeacher(e.target.value)}
+  style={{
+    width: "100%",
+    padding: 10,
+    marginBottom: 15,
+  }}
+/>
         <select
           value={type}
           onChange={(e) => setType(e.target.value)}
@@ -93,7 +163,68 @@ const [password, setPassword] = useState("");
 
   اجازه ورود مهمان
 </label>
+<hr style={{ margin: "20px 0" }} />
 
+<h3>تنظیمات رویداد</h3>
+
+<div style={{ marginBottom: 15 }}>
+  <label>وضعیت</label>
+
+  <select
+    value={status}
+    onChange={(e) => setStatus(e.target.value)}
+    style={{ width: "100%", padding: 10 }}
+  >
+    <option value="فعال">فعال</option>
+    <option value="غیرفعال">غیرفعال</option>
+  </select>
+</div>
+
+<div style={{ marginBottom: 15 }}>
+  <label>
+    <input
+      type="checkbox"
+      checked={allowGuest}
+      onChange={(e) => setAllowGuest(e.target.checked)}
+    />
+    {" "}امکان ورود مهمان
+  </label>
+</div>
+
+<div style={{ marginBottom: 15 }}>
+  <label>کد ورود مهمان (اختیاری)</label>
+
+  <input
+    value={guestCode}
+    onChange={(e) => setGuestCode(e.target.value)}
+    placeholder="در صورت نیاز کد وارد کنید"
+    style={{ width: "100%", padding: 10 }}
+  />
+</div>
+
+<div style={{ marginBottom: 15 }}>
+  <label>سطح دسترسی اعضا</label>
+
+  <select
+    value={memberAccess}
+    onChange={(e) => setMemberAccess(e.target.value)}
+    style={{ width: "100%", padding: 10 }}
+  >
+    <option value="participant">شرکت کننده</option>
+    <option value="manager">مدیر</option>
+  </select>
+</div>
+
+<div style={{ marginBottom: 15 }}>
+  <label>
+    <input
+      type="checkbox"
+      checked={autoRecord}
+      onChange={(e) => setAutoRecord(e.target.checked)}
+    />
+    {" "}ضبط خودکار جلسه
+  </label>
+</div>
         <div
           style={{
             marginTop: 25,
@@ -107,23 +238,37 @@ const [password, setPassword] = useState("");
 
           <button
             onClick={() => {
-              onCreate({
-                title,
-                type,
-                password,
-                allowGuest,
+             onCreate({
+  title,
+  teacher,
+  date,
+  time,
+  type,
+  password,
+  allowGuest,
 
-              });
+  status,
+  guestCode,
+  memberAccess,
+  autoRecord,
+});
 
               setTitle("");
-              setType("آموزشی");
-              setPassword("");
-              setAllowGuest(true);
+setTeacher("");
+setDate("");
+setTime("");
+setType("آموزشی");
+setPassword("");
+setAllowGuest(true);
+setStatus("فعال");
+setGuestCode("");
+setMemberAccess("participant");
+setAutoRecord(false);
 
               onClose();
             }}
           >
-            ایجاد اتاق
+           {room ? "ذخیره تغییرات" : "ایجاد اتاق"}
           </button>
         </div>
       </div>

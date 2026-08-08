@@ -1,80 +1,133 @@
-import { Link } from "react-router-dom";
+import {
+  LayoutDashboard,
+  CalendarDays,
+  Users,
+  Settings,
+  FolderKanban,
+} from "lucide-react";
+import { NavLink } from "react-router-dom";
+
+const menu = [
+  {
+    title: "داشبورد",
+    icon: <LayoutDashboard size={20} />,
+    path: "/",
+  },
+  {
+    title: "رویدادها",
+    icon: <CalendarDays size={20} />,
+    path: "/classes",
+  },
+  {
+    title: "کاربران",
+    icon: <Users size={20} />,
+    path: "/users",
+  },
+  {
+    title: "گزارش‌ها",
+    icon: <FolderKanban size={20} />,
+    path: "/reports",
+  },
+  {
+    title: "تنظیمات",
+    icon: <Settings size={20} />,
+    path: "/room-settings",
+  },
+];
 
 function Sidebar() {
-  const linkStyle = {
-    display: "block",
-    marginBottom: 20,
-    color: "white",
-    textDecoration: "none",
-    fontSize: 16,
-  };
-
   return (
     <div
       style={{
-        width: 250,
-        background: "#1e293b",
-        color: "white",
-        padding: 20,
+        width: 270,
         minHeight: "100vh",
+        background: "#009693",
+        display: "flex",
+        flexDirection: "column",
+        padding: 24,
+        boxSizing: "border-box",
       }}
     >
       <div
-  style={{
-    textAlign: "center",
-    marginBottom: 35,
-  }}
->
-  {/* بعداً لوگو اینجا قرار می‌گیرد */}
+        style={{
+          textAlign: "center",
+          marginBottom: 40,
+        }}
+      >
+        <img
+          src="/logo.png"
+          alt="logo"
+          style={{
+            width: 170,
+            marginBottom: 18,
+          }}
+        />
 
-<img
-  src="/logo.png"
-  alt="JDMeet"
-  style={{
-    width: 180,
-    marginBottom: 15,
-  }}
-/>
-  <h2
-    style={{
-      color: "white",
-      margin: 0,
-      fontSize: 28,
-      fontWeight: "bold",
-    }}
-  >
-    JDMeet
-  </h2>
+        <div
+          style={{
+            color: "#fff",
+            fontSize: 28,
+            fontWeight: 700,
+          }}
+        >
+          JDMeet
+        </div>
 
-  <div
-    style={{
-      color: "#cbd5e1",
-      fontSize: 12,
-      marginTop: 8,
-      lineHeight: 1.8,
-    }}
-  >
-    سامانه مدیریت کلاس آنلاین
-    <br />
-    جهاد دانشگاهی
-  </div>
-</div>
+        <div
+          style={{
+            color: "rgba(255,255,255,.8)",
+            fontSize: 13,
+            marginTop: 8,
+          }}
+        >
+          سامانه مدیریت جلسات آنلاین
+        </div>
+      </div>
 
-      <Link to="/" style={linkStyle}>
-        🏠 داشبورد
-      </Link>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 10,
+        }}
+      >
+        {menu.map((item) => (
+          <NavLink
+            key={item.path}
+            to={item.path}
+            style={({ isActive }) => ({
+              display: "flex",
+              alignItems: "center",
+              gap: 14,
+              padding: "14px 18px",
+              borderRadius: 14,
+              textDecoration: "none",
+              color: "#fff",
+              background: isActive
+                ? "rgba(255,255,255,.18)"
+                : "transparent",
+              transition: ".2s",
+              fontWeight: isActive ? 700 : 500,
+            })}
+          >
+            {item.icon}
+            {item.title}
+          </NavLink>
+        ))}
+      </div>
 
-      <Link to="/classes" style={linkStyle}>
-  👨‍🏫 کلاس‌ها
-      </Link>
-
-      <Link to="/users" style={linkStyle}>
-        👥 کاربران
-      </Link>
-
-      <Link to="/room-settings" style={linkStyle}>
-  ⚙️ تنظیمات
-    </Link>
+      <div
+        style={{
+          marginTop: "auto",
+          borderTop: "1px solid rgba(255,255,255,.2)",
+          paddingTop: 20,
+          color: "rgba(255,255,255,.8)",
+          fontSize: 13,
+          textAlign: "center",
+        }}
+      >
+        نسخه 1.0.0
+      </div>
     </div>
   );
 }

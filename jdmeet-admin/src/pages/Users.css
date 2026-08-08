@@ -1,0 +1,58 @@
+.users-card{
+    background:white;
+    border-radius:18px;
+    overflow:hidden;
+    border:1px solid #e5e7eb;
+    box-shadow:0 8px 25px rgba(0,0,0,.06);
+}
+
+.users-table{
+    width:100%;
+    border-collapse:collapse;
+}
+
+.users-table thead{
+    background:linear-gradient(90deg,#009693,#007f7b);
+}
+
+.users-table th{
+    color:white;
+    padding:18px;
+    font-size:15px;
+    font-weight:700;
+    text-align:center;
+}
+
+.users-table td{
+    padding:18px;
+    text-align:center;
+    border-bottom:1px solid #eef2f7;
+}
+
+.users-table tbody tr{
+    transition:.2s;
+}
+
+.users-table tbody tr:hover{
+    background:#f4fffe;
+}
+.center{
+    text-align:center;
+}
+
+.status{
+    padding:6px 14px;
+    border-radius:20px;
+    font-size:13px;
+    font-weight:600;
+}
+
+.status.active{
+    background:#dcfce7;
+    color:#166534;
+}
+
+.status.inactive{
+    background:#fee2e2;
+    color:#991b1b;
+}

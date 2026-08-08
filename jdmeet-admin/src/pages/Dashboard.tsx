@@ -1,58 +1,71 @@
+import { useEffect, useState } from "react";
+import axios from "axios";
+
 function Dashboard() {
+  const [dashboard, setDashboard] = useState({
+    totalUsers: 0,
+    totalRooms: 0,
+    activeRooms: 0,
+  });
+
+  const [todayMeetings, setTodayMeetings] = useState<any[]>([]);
+
+  useEffect(() => {
+    loadDashboard();
+  }, []);
+
+  const loadDashboard = async () => {
+    try {
+      const dashboardRes = await axios.get(
+        "http://localhost:5000/api/dashboard"
+      );
+
+      setDashboard(dashboardRes.data.data);
+
+      const meetingsRes = await axios.get(
+        "http://localhost:5000/api/dashboard/rooms"
+      );
+
+      setTodayMeetings(meetingsRes.data.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const cards = [
     {
-      title: "اتاق‌های فعال",
-      value: 12,
+      title: "کل کاربران",
+      value: dashboard.totalUsers,
       color: "#2563eb",
     },
     {
-      title: "جلسات در حال برگزاری",
-      value: 4,
+      title: "کل رویدادها",
+      value: dashboard.totalRooms,
       color: "#16a34a",
     },
     {
-      title: "کاربران آنلاین",
-      value: 186,
+      title: "رویدادهای فعال",
+      value: dashboard.activeRooms,
       color: "#ea580c",
     },
     {
-      title: "وبینارهای امروز",
-      value: 2,
+      title: "سامانه JDMeet",
+      value: "✓",
       color: "#7c3aed",
     },
   ];
-const todayMeetings = [
-  {
-    title: "Family 1A",
-    teacher: "استاد احمدی",
-    time: "09:00",
-    status: "درحال برگزاری",
-  },
-  {
-    title: "وبینار هوش مصنوعی",
-    teacher: "دکتر رضایی",
-    time: "14:00",
-    status: "برنامه‌ریزی شده",
-  },
-  {
-    title: "جلسه مدیران",
-    teacher: "مدیر سیستم",
-    time: "16:00",
-    status: "برنامه‌ریزی شده",
-  },
-];
 
   return (
     <>
       <h1
-  style={{
-    marginBottom: 30,
-    fontSize: 24,
-    fontWeight: 600,
-  }}
->
-  داشبورد JDMeet
-</h1>
+        style={{
+          marginBottom: 30,
+          fontSize: 24,
+          fontWeight: 600,
+        }}
+      >
+        داشبورد JDMeet
+      </h1>
 
       <div
         style={{
@@ -91,47 +104,61 @@ const todayMeetings = [
               {card.value}
             </div>
           </div>
-          
         ))}
       </div>
+
       <div
-  style={{
-    background: "white",
-    marginTop: 35,
-    borderRadius: 12,
-    padding: 20,
-    boxShadow: "0 2px 10px rgba(0,0,0,.08)",
-  }}
->
-  <h2 style={{ marginBottom: 20 }}>جلسات امروز</h2>
+        style={{
+          background: "white",
+          marginTop: 35,
+          borderRadius: 12,
+          padding: 20,
+          boxShadow: "0 2px 10px rgba(0,0,0,.08)",
+        }}
+      >
+        <h2 style={{ marginBottom: 20 }}>آخرین رویدادها</h2>
 
-  <table
-    style={{
-      width: "100%",
-      borderCollapse: "collapse",
-    }}
-  >
-    <thead>
-      <tr>
-        <th style={{ padding: 12 }}>عنوان</th>
-        <th style={{ padding: 12 }}>مدرس</th>
-        <th style={{ padding: 12 }}>ساعت</th>
-        <th style={{ padding: 12 }}>وضعیت</th>
-      </tr>
-    </thead>
+        <table
+          style={{
+            width: "100%",
+            borderCollapse: "collapse",
+          }}
+        >
+          <thead>
+            <tr>
+              <th style={{ padding: 12 }}>عنوان</th>
+              <th style={{ padding: 12 }}>مدرس</th>
+              <th style={{ padding: 12 }}>ساعت</th>
+              <th style={{ padding: 12 }}>وضعیت</th>
+            </tr>
+          </thead>
 
-    <tbody>
-      {todayMeetings.map((item) => (
-        <tr key={item.title}>
-          <td style={{ padding: 12 }}>{item.title}</td>
-          <td style={{ padding: 12 }}>{item.teacher}</td>
-          <td style={{ padding: 12 }}>{item.time}</td>
-          <td style={{ padding: 12 }}>{item.status}</td>
-        </tr>
-      ))}
-    </tbody>
-  </table>
-</div>
+          <tbody>
+            {todayMeetings.map((item: any, index) => (
+              <tr key={index}>
+                <td style={{ padding: 12 }}>{item.title}</td>
+                <td style={{ padding: 12 }}>{item.teacher}</td>
+                <td style={{ padding: 12 }}>
+                  {item.time || "-"}
+                </td>
+                <td style={{ padding: 12 }}>
+                  <span
+                    style={{
+                      background: "#dcfce7",
+                      color: "#15803d",
+                      padding: "4px 10px",
+                      borderRadius: 20,
+                      fontSize: 13,
+                    }}
+                  >
+                    فعال
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </>
   );
 }

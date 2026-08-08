@@ -8,9 +8,9 @@ function Layout() {
       style={{
         display: "flex",
         direction: "rtl",
-        background: "#f1f5f9",
         minHeight: "100vh",
-        fontFamily: "Tahoma",
+        background: "#F5F7FA",
+        fontFamily: "Vazirmatn, Tahoma",
       }}
     >
       <Sidebar />
@@ -18,12 +18,22 @@ function Layout() {
       <div
         style={{
           flex: 1,
-          padding: 40,
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
         }}
       >
         <Header />
 
-        <Outlet />
+        <main
+          style={{
+            flex: 1,
+            padding: 30,
+            overflowY: "auto",
+          }}
+        >
+          <Outlet />
+        </main>
       </div>
     </div>
   );

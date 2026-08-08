@@ -1,37 +1,92 @@
 import { Bell, Search, User } from "lucide-react";
+
 function Header() {
   return (
     <div
       style={{
-        background: "white",
-        padding: "18px 30px",
-        borderRadius: 12,
+        background: "#fff",
+        height: 72,
+        borderRadius: 14,
+        padding: "0 25px",
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
-        marginBottom: 30,
-        boxShadow: "0 2px 10px rgba(0,0,0,.08)",
+        boxShadow: "0 2px 12px rgba(15,23,42,.06)",
+        marginBottom: 25,
       }}
     >
-      <div>
-        <h2
-          style={{
-            margin: 0,
-            fontSize: 24,
-          }}
-        >
-          پنل مدیریت
-        </h2>
-
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 15,
+        }}
+      >
         <div
           style={{
-            color: "#64748b",
-            marginTop: 5,
-            fontSize: 14,
+            width: 46,
+            height: 46,
+            borderRadius: 12,
+            background: "#009693",
+            color: "#fff",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            fontWeight: 700,
+            fontSize: 20,
           }}
         >
-          خوش آمدید مدیر سیستم
+          J
         </div>
+
+        <div>
+          <div
+            style={{
+              fontSize: 18,
+              fontWeight: 700,
+              color: "#0f172a",
+            }}
+          >
+            JDMeet
+          </div>
+
+          <div
+            style={{
+              color: "#64748b",
+              fontSize: 13,
+            }}
+          >
+            سامانه مدیریت جلسات آنلاین
+          </div>
+        </div>
+      </div>
+
+      <div
+        style={{
+          width: 420,
+          height: 45,
+          background: "#f8fafc",
+          border: "1px solid #e2e8f0",
+          borderRadius: 12,
+          display: "flex",
+          alignItems: "center",
+          padding: "0 15px",
+          gap: 10,
+        }}
+      >
+        <Search size={18} color="#64748b" />
+
+        <input
+          placeholder="جستجوی کاربران، رویدادها..."
+          style={{
+            border: "none",
+            outline: "none",
+            background: "transparent",
+            width: "100%",
+            fontFamily: "inherit",
+            fontSize: 14,
+          }}
+        />
       </div>
 
       <div
@@ -43,84 +98,70 @@ function Header() {
       >
         <div
           style={{
-            background: "#f1f5f9",
-            width: 42,
-            height: 42,
-            borderRadius: "50%",
+            width: 44,
+            height: 44,
+            borderRadius: 12,
+            background: "#f8fafc",
+            border: "1px solid #e2e8f0",
             display: "flex",
             justifyContent: "center",
             alignItems: "center",
-            cursor: "pointer",
-            fontSize: 18,
-          }}
-        >
-          <Search size={20} color="#334155" />
-        </div>
-
-        <div
-          style={{
-            background: "#f1f5f9",
-            width: 42,
-            height: 42,
-            borderRadius: "50%",
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            cursor: "pointer",
-            fontSize: 18,
             position: "relative",
+            cursor: "pointer",
           }}
         >
-          <Bell size={20} color="#334155" />
+          <Bell size={20} />
 
           <span
             style={{
               position: "absolute",
-              top: 5,
-              right: 5,
+              top: 8,
+              right: 8,
               width: 8,
               height: 8,
-              borderRadius: "50%",
               background: "#ef4444",
+              borderRadius: "50%",
             }}
-          ></span>
+          />
         </div>
 
         <div
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 10,
-            background: "#f8fafc",
-            padding: "6px 12px",
-            borderRadius: 30,
+            gap: 12,
+            cursor: "pointer",
           }}
         >
           <div
             style={{
-              width: 40,
-              height: 40,
+              width: 46,
+              height: 46,
               borderRadius: "50%",
-              background: "#2563eb",
-              color: "white",
+              background: "#009693",
+              color: "#fff",
               display: "flex",
               justifyContent: "center",
               alignItems: "center",
-              fontWeight: "bold",
             }}
           >
             <User size={20} />
           </div>
 
           <div>
-            <div style={{ fontWeight: "bold", fontSize: 14 }}>
+            <div
+              style={{
+                fontWeight: 700,
+                color: "#0f172a",
+              }}
+            >
               مدیر سیستم
             </div>
 
             <div
               style={{
                 color: "#64748b",
-                fontSize: 12,
+                fontSize: 13,
               }}
             >
               Administrator
