@@ -1,7 +1,5 @@
-import { useParams } from "react-router-dom";
 
 function EventDetails() {
-  const { id } = useParams();
 
   return (
   <>

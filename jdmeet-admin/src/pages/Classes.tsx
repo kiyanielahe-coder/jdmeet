@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState } from "react";
 import axios from "axios";
 
 import Tooltip from "@mui/material/Tooltip";
@@ -9,10 +8,7 @@ import MenuItem from "@mui/material/MenuItem";
 import Divider from "@mui/material/Divider";
 
 import MoreVertIcon from "@mui/icons-material/MoreVert";
-import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import LaunchIcon from "@mui/icons-material/Launch";
-import EditIcon from "@mui/icons-material/Edit";
-import DeleteIcon from "@mui/icons-material/Delete";
 
 import CreateRoomModal from "../components/CreateRoomModal";
 import "./Classes.css";
@@ -30,7 +26,6 @@ type Room = {
 };
 
 function Classes() {
-  const navigate = useNavigate();
 
   const [rooms, setRooms] = useState<Room[]>([]);
   const [search, setSearch] = useState("");
@@ -60,9 +55,6 @@ const [activeRole, setActiveRole] =
     "participant"
   >("manager");
 
-const [searchUser, setSearchUser] =
-  useState("");
-
 
   const openMenu = (
     event: React.MouseEvent<HTMLElement>,
@@ -77,11 +69,6 @@ const [searchUser, setSearchUser] =
 };
 const [selectedUserId, setSelectedUserId] = useState("");
 
-const [selectedRole, setSelectedRole] =
-  useState("participant");
-  useEffect(() => {
-    loadRooms();
-  }, []);
 
   async function loadRooms() {
     try {

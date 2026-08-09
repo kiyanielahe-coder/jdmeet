@@ -31,7 +31,6 @@ function Users() {
   const [search, setSearch] = useState("");
 const [statusFilter, setStatusFilter] = useState("همه");
   const [users, setUsers] = useState<User[]>([]);
-const [userToDelete, setUserToDelete] = useState<any>(null);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 const [selectedUser, setSelectedUser] = useState<any>(null);
 const [passwordModalOpen, setPasswordModalOpen] = useState(false);

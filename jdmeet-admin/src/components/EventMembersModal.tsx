@@ -253,7 +253,7 @@ export default function EventMembersModal({
 
     try {
       await axios.delete(
-        `http://localhost:5000/api/rooms/members/${m.id}`
+        `http://localhost:5000/api/event-members/${m.id}`
       );
 
       loadData();
