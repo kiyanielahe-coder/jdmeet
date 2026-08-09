@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import axios from "axios";
 
 import Tooltip from "@mui/material/Tooltip";
@@ -81,6 +81,10 @@ const [selectedUserId, setSelectedUserId] = useState("");
       console.log(err);
     }
   }
+  useEffect(() => {
+  loadRooms();
+}, []);
+
 async function refreshMembers() {
 
   if (!selectedRoom) return;
