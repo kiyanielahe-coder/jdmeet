@@ -179,8 +179,28 @@ status = ?
   );
 });
 app.get("/api/users", (req, res) => {
-  console.log(req.body);
-  db.all("SELECT * FROM users ORDER BY id DESC", [], (err, rows) => {
+  const search = (req.query.search || "").trim();
+
+  let sql = `
+    SELECT id, fullName, nationalCode, username, status
+    FROM users
+  `;
+
+  let params = [];
+
+  if (search) {
+    sql += `
+      WHERE fullName LIKE ?
+         OR nationalCode LIKE ?
+    `;
+
+    const searchValue = `%${search}%`;
+    params = [searchValue, searchValue];
+  }
+
+  sql += " ORDER BY id DESC";
+
+  db.all(sql, params, (err, rows) => {
     if (err) {
       return res.status(500).json({
         success: false,

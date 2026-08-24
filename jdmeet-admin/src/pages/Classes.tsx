@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import axios from "axios";
 
 import Tooltip from "@mui/material/Tooltip";
@@ -11,6 +11,7 @@ import MoreVertIcon from "@mui/icons-material/MoreVert";
 import LaunchIcon from "@mui/icons-material/Launch";
 
 import CreateRoomModal from "../components/CreateRoomModal";
+import EventMembersModal from "../components/EventMembersModal";
 import "./Classes.css";
 
 type Room = {
@@ -26,7 +27,6 @@ type Room = {
 };
 
 function Classes() {
-
   const [rooms, setRooms] = useState<Room[]>([]);
   const [search, setSearch] = useState("");
 
@@ -42,19 +42,6 @@ function Classes() {
     const [membersOpen, setMembersOpen] =
   useState(false);
 
-const [members, setMembers] =
-  useState<any[]>([]);
-
-const [users, setUsers] =
-  useState<any[]>([]);
-
-const [activeRole, setActiveRole] =
-  useState<
-    "manager" |
-    "assistant" |
-    "participant"
-  >("manager");
-
 
   const openMenu = (
     event: React.MouseEvent<HTMLElement>,
@@ -67,8 +54,12 @@ const [activeRole, setActiveRole] =
   const closeMenu = () => {
   setAnchorEl(null);
 };
-const [selectedUserId, setSelectedUserId] = useState("");
 
+const [selectedRole, setSelectedRole] =
+  useState("participant");
+  useEffect(() => {
+    loadRooms();
+  }, []);
 
   async function loadRooms() {
     try {
@@ -81,10 +72,6 @@ const [selectedUserId, setSelectedUserId] = useState("");
       console.log(err);
     }
   }
-  useEffect(() => {
-  loadRooms();
-}, []);
-
 async function refreshMembers() {
 
   if (!selectedRoom) return;
@@ -468,36 +455,14 @@ async function refreshMembers() {
 </MenuItem>
 
       <MenuItem
-  onClick={async () => {
-
-    if (!selectedRoom) return;
-
-    const membersRes =
-      await axios.get(
-        `http://localhost:5000/api/rooms/${selectedRoom.id}/members`
-      );
-
-    const usersRes =
-      await axios.get(
-        "http://localhost:5000/api/users"
-      );
-
-    setMembers(
-      membersRes.data.data
-    );
-
-    setUsers(
-      usersRes.data.data
-    );
-
-    setMembersOpen(true);
-
-    closeMenu();
-
-  }}
->
-  👥 اعضای رویداد
-</MenuItem>
+        onClick={() => {
+          if (!selectedRoom) return;
+          setMembersOpen(true);
+          closeMenu();
+        }}
+      >
+        👥 اعضای رویداد
+      </MenuItem>
 
       <MenuItem disabled>
         📊 گزارش حضور
@@ -538,180 +503,11 @@ async function refreshMembers() {
       </MenuItem>
 
     </Menu>
-{membersOpen && (
-  <div
-    style={{
-      position: "fixed",
-      inset: 0,
-      background: "rgba(0,0,0,.35)",
-      display: "flex",
-      justifyContent: "center",
-      alignItems: "center",
-      zIndex: 9999,
-      left: 0,
-      top: 0,
-      direction: "rtl",
-    }}
-  >
-    <div
-      style={{
-     width: "850px",
-     maxWidth: "95%",        background: "#fff",
-        borderRadius: 14,
-        padding: 25,
-      }}
-    >
-      <h2>اعضای رویداد</h2>
-
-
-  <div
-  style={{
-    display: "flex",
-    gap: 10,
-    marginTop: 20,
-    marginBottom: 20,
-  }}
->
-  <button onClick={() => setActiveRole("manager")}>
-👑 مدیران
-</button>
-
-<button onClick={() => setActiveRole("assistant")}>
-🟢 دستیاران
-</button>
-
-<button onClick={() => setActiveRole("participant")}>
-👤 شرکت‌کنندگان
-</button>
-</div>
-<div
-  style={{
-    display: "flex",
-    gap: 10,
-    marginTop: 20,
-    marginBottom: 20,
-    alignItems: "center",
-  }}
->
-  <select
-    value={selectedUserId}
-    onChange={(e) => setSelectedUserId(e.target.value)}
-    style={{
-      flex: 1,
-      padding: 10,
-      height: 42,
-    }}
-  >
-    <option value="">انتخاب کاربر...</option>
-
-    {users.map((u: any) => (
-      <option key={u.id} value={u.id}>
-        {u.fullName}
-      </option>
-    ))}
-  </select>
-
-  <button
-    style={{
-      height: 42,
-      padding: "0 20px",
-      border: "none",
-      background: "#2563eb",
-      color: "#fff",
-      borderRadius: 8,
-      cursor: "pointer",
-    }}
-    onClick={async () => {
-      if (!selectedUserId) return;
-
-      await axios.post(
-        `http://localhost:5000/api/rooms/${selectedRoom?.id}/members`,
-        {
-          userId: selectedUserId,
-          role: activeRole,
-        }
-      );
-
-      setSelectedUserId("");
-
-      await refreshMembers();
-    }}
-  >
-    افزودن
-  </button>
-</div>
-</div>
-      <table
-        style={{
-          width: "100%",
-          marginTop: 25,
-        }}
-      >
-        <thead>
-          <tr>
-            <th>نام</th>
-            <th>کد ملی</th>
-            <th>نقش</th>
-            <th>عملیات</th>
-          </tr>
-        </thead>
-
-        <tbody>
-          {members
-  .filter((m: any) => m.role === activeRole)
-  .map((m: any) => (
-            <tr key={m.id}>
-              <td>{m.fullName}</td>
-
-              <td>{m.nationalCode}</td>
-
-              <td>
-                {m.role === "manager"
-                  ? "مدیر"
-                  : m.role === "assistant"
-                  ? "دستیار"
-                  : "شرکت کننده"}
-              </td>
-
-              <td>
-                <button
-                  onClick={async () => {
-                    await axios.delete(
-                      `http://localhost:5000/api/event-members/${m.id}`
-                    );
-
-                    const res =
-                      await axios.get(
-                        `http://localhost:5000/api/rooms/${selectedRoom?.id}/members`
-                      );
-
-                    setMembers(
-                      res.data.data
-                    );
-                  }}
-                >
-                  حذف
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-<div
-  style={{
-    display: "flex",
-    justifyContent: "flex-end",
-    marginTop: 20,
-  }}
->
-  <button
-    onClick={() => setMembersOpen(false)}
-  >
-    بستن
-  </button>
-</div>
-    </div> 
-)}
+<EventMembersModal
+      open={membersOpen}
+      room={selectedRoom}
+      onClose={() => setMembersOpen(false)}
+    />
   </>
 );
 
