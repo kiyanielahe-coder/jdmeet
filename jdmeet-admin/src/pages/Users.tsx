@@ -17,8 +17,7 @@ type User = {
   id: number;
   fullName: string;
   username: string;
-  password: string;
-  nationalCode?: string;
+  mobile?: string;
   status?: string;
   className?: string;
   lastLogin?: string;
@@ -63,10 +62,10 @@ const handleMenuClose = () => {
   const keyword = search.toLowerCase();
 
   const matchSearch =
-    user.fullName?.toLowerCase().includes(keyword) ||
-    user.username?.toLowerCase().includes(keyword) ||
-    user.nationalCode?.includes(search) ||
-    user.status?.toLowerCase().includes(keyword);
+  user.fullName?.toLowerCase().includes(keyword) ||
+  user.username?.toLowerCase().includes(keyword) ||
+  user.mobile?.includes(search) ||
+  user.status?.toLowerCase().includes(keyword);
 
   const matchStatus =
     statusFilter === "همه" ||
@@ -269,10 +268,10 @@ setOpen(false);
     <thead>
       <tr>
         <th>نام و نام خانوادگی</th>
-        <th>کد ملی</th>
-        <th>نام کاربری</th>
-        <th>وضعیت</th>
-        <th>عملیات</th>
+<th>نام کاربری</th>
+<th>شماره موبایل</th>
+<th>وضعیت</th>
+<th>عملیات</th>
       </tr>
     </thead>
 
@@ -281,7 +280,7 @@ setOpen(false);
         <tr key={user.id}>
           <td>{user.fullName}</td>
 
-          <td>{user.nationalCode}</td>
+          <td>{user.mobile || "-"}</td>
 
           <td>{user.username}</td>
 

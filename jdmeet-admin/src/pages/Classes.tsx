@@ -54,9 +54,6 @@ function Classes() {
   const closeMenu = () => {
   setAnchorEl(null);
 };
-
-const [selectedRole, setSelectedRole] =
-  useState("participant");
   useEffect(() => {
     loadRooms();
   }, []);
@@ -72,18 +69,6 @@ const [selectedRole, setSelectedRole] =
       console.log(err);
     }
   }
-async function refreshMembers() {
-
-  if (!selectedRoom) return;
-
-  const res =
-    await axios.get(
-      `http://localhost:5000/api/rooms/${selectedRoom.id}/members`
-    );
-
-  setMembers(res.data.data);
-
-}
   const filteredRooms = rooms.filter((room) =>
     room.title
       .toLowerCase()

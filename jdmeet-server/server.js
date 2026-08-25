@@ -182,20 +182,26 @@ app.get("/api/users", (req, res) => {
   const search = (req.query.search || "").trim();
 
   let sql = `
-    SELECT id, fullName, nationalCode, username, status
+    SELECT
+      id,
+      fullName,
+      username,
+      mobile,
+      status
     FROM users
   `;
 
-  let params = [];
+  const params = [];
 
   if (search) {
     sql += `
-      WHERE fullName LIKE ?
-         OR nationalCode LIKE ?
+      WHERE
+        fullName LIKE ?
+        OR username LIKE ?
     `;
 
     const searchValue = `%${search}%`;
-    params = [searchValue, searchValue];
+    params.push(searchValue, searchValue);
   }
 
   sql += " ORDER BY id DESC";
@@ -215,58 +221,118 @@ app.get("/api/users", (req, res) => {
   });
 });
 app.post("/api/users", (req, res) => {
-  console.log(req.body);
   const {
-  fullName,
-  nationalCode,
+  firstName,
+  lastName,
   username,
   password,
+  mobile,
   status,
 } = req.body;
 
-  const sql = `
-    INSERT INTO users
-(fullName, nationalCode, username, password, status)
-VALUES (?, ?, ?, ?, ?)
-  `;
+const cleanFirstName = firstName?.trim() || "";
+const cleanLastName = lastName?.trim() || "";
+const cleanUsername = username?.trim() || "";
+const cleanPassword = password || "";
+const cleanMobile = mobile?.trim() || null;
+const cleanStatus = status || "فعال";
 
-  db.run(
-    sql,
-    [
-  fullName,
-  nationalCode,
-  username,
-  password,
-  status,
-],
-    function (err) {
-      if (err) {
-  console.error(err);
-
-  if (err.message.includes("users.username")) {
-    return res.status(400).json({
-      success: false,
-      message: "این نام کاربری قبلاً ثبت شده است.",
-    });
-  }
-
-  if (err.message.includes("users.nationalCode")) {
-    return res.status(400).json({
-      success: false,
-      message: "این کد ملی قبلاً ثبت شده است.",
-    });
-  }
-
-  return res.status(500).json({
+if (!cleanFirstName) {
+  return res.status(400).json({
     success: false,
-    message: err.message,
+    message: "نام الزامی است.",
   });
 }
-      res.json({
-        success: true,
-        id: this.lastID,
-        message: "کاربر با موفقیت ایجاد شد.",
-      });
+
+if (!cleanLastName) {
+  return res.status(400).json({
+    success: false,
+    message: "نام خانوادگی الزامی است.",
+  });
+}
+
+if (!cleanUsername) {
+  return res.status(400).json({
+    success: false,
+    message: "نام کاربری الزامی است.",
+  });
+}
+
+if (!cleanPassword) {
+  return res.status(400).json({
+    success: false,
+    message: "رمز عبور الزامی است.",
+  });
+}
+
+const cleanFullName =
+  `${cleanFirstName} ${cleanLastName}`.trim();
+  // نام کاربری باید در کل سامانه یکتا باشد
+  db.get(
+    "SELECT id FROM users WHERE username = ?",
+    [cleanUsername],
+    (err, existingUser) => {
+      if (err) {
+        return res.status(500).json({
+          success: false,
+          message: err.message,
+        });
+      }
+
+      if (existingUser) {
+        return res.status(400).json({
+          success: false,
+          message: "این نام کاربری قبلاً ثبت شده است.",
+        });
+      }
+
+      // nationalCode ستون قدیمی دیتابیس است.
+      // فعلاً برای حفظ سازگاری دیتابیس یک مقدار داخلی یکتا در آن می‌گذاریم.
+      const legacyNationalCode =
+        `legacy-${Date.now()}-${Math.random()
+          .toString(36)
+          .slice(2, 8)}`;
+
+      const sql = `
+        INSERT INTO users
+        (
+          fullName,
+          nationalCode,
+          username,
+          password,
+          mobile,
+          status
+        )
+        VALUES (?, ?, ?, ?, ?, ?)
+      `;
+
+      db.run(
+        sql,
+        [
+          cleanFullName,
+          legacyNationalCode,
+          cleanUsername,
+          cleanPassword,
+          cleanMobile,
+          cleanStatus,
+        ],
+        function (insertErr) {
+          if (insertErr) {
+            console.error(insertErr);
+
+            return res.status(500).json({
+              success: false,
+              message: insertErr.message,
+            });
+          }
+
+          res.json({
+            success: true,
+            id: this.lastID,
+            message: "کاربر با موفقیت ایجاد شد.",
+          });
+        }
+      );
     }
   );
 });
@@ -280,50 +346,22 @@ app.get("/api/rooms/:id/members", (req, res) => {
       event_members.role,
       users.id AS userId,
       users.fullName,
-      users.nationalCode
+      users.username,
+      users.mobile
     FROM event_members
     JOIN users
       ON users.id = event_members.userId
-    WHERE roomId = ?
+    WHERE event_members.roomId = ?
+    ORDER BY event_members.id ASC
     `,
     [id],
     (err, rows) => {
-      if (err)
+      if (err) {
         return res.status(500).json({
           success: false,
           message: err.message,
         });
-
-      res.json({
-        success: true,
-        data: rows,
-      });
-    }
-  );
-});
-app.get("/api/rooms/:id/members", (req, res) => {
-  const { id } = req.params;
-
-  db.all(
-    `
-    SELECT
-      event_members.id,
-      event_members.role,
-      users.id AS userId,
-      users.fullName,
-      users.nationalCode
-    FROM event_members
-    JOIN users
-      ON users.id = event_members.userId
-    WHERE roomId = ?
-    `,
-    [id],
-    (err, rows) => {
-      if (err)
-        return res.status(500).json({
-          success: false,
-          message: err.message,
-        });
+      }
 
       res.json({
         success: true,
@@ -336,23 +374,84 @@ app.post("/api/rooms/:id/members", (req, res) => {
   const { id } = req.params;
   const { userId, role } = req.body;
 
-  db.run(
+  if (!userId || !role) {
+    return res.status(400).json({
+      success: false,
+      message: "کاربر و نقش الزامی هستند.",
+    });
+  }
+
+  const allowedRoles = [
+  "manager",
+  "presenter",
+  "participant",
+];
+
+  if (!allowedRoles.includes(role)) {
+    return res.status(400).json({
+      success: false,
+      message: "نقش انتخاب‌شده معتبر نیست.",
+    });
+  }
+
+  // بررسی اینکه کاربر قبلاً در همین رویداد عضو نباشد
+  db.get(
     `
-    INSERT INTO event_members
-    (roomId,userId,role)
-    VALUES(?,?,?)
+    SELECT
+      event_members.id,
+      event_members.role,
+      users.fullName
+    FROM event_members
+    JOIN users ON users.id = event_members.userId
+    WHERE event_members.roomId = ?
+      AND event_members.userId = ?
     `,
-    [id, userId, role],
-    function (err) {
-      if (err)
+    [id, userId],
+    (checkErr, existingMember) => {
+      if (checkErr) {
         return res.status(500).json({
           success: false,
-          message: err.message,
+          message: checkErr.message,
         });
+      }
 
-      res.json({
-        success: true,
-      });
+      if (existingMember) {
+        const roleNames = {
+  manager: "مدیر",
+  presenter: "ارائه‌کننده",
+  participant: "شرکت‌کننده",
+};
+        return res.status(400).json({
+          success: false,
+          message: `این کاربر قبلاً با نقش «${
+            roleNames[existingMember.role] ||
+            existingMember.role
+          }» عضو این رویداد است.`,
+        });
+      }
+
+      db.run(
+        `
+        INSERT INTO event_members
+        (roomId, userId, role)
+        VALUES (?, ?, ?)
+        `,
+        [id, userId, role],
+        function (err) {
+          if (err) {
+            return res.status(500).json({
+              success: false,
+              message: err.message,
+            });
+          }
+
+          res.json({
+            success: true,
+            id: this.lastID,
+            message: "عضو با موفقیت اضافه شد.",
+          });
+        }
+      );
     }
   );
 });
@@ -395,47 +494,123 @@ app.put("/api/users/:id", (req, res) => {
   const { id } = req.params;
 
   const {
-  fullName,
-  nationalCode,
-  username,
-  password,
-  status,
-} = req.body;
+    firstName,
+    lastName,
+    fullName,
+    username,
+    password,
+    mobile,
+    status,
+  } = req.body;
 
-  const sql = `
-    UPDATE users
-SET
-  fullName = ?,
-  nationalCode = ?,
-  username = ?,
-  password = ?,
-  status = ?
-WHERE id = ?
-  `;
+  const cleanFullName =
+    fullName?.trim() ||
+    `${firstName?.trim() || ""} ${
+      lastName?.trim() || ""
+    }`.trim();
 
-  db.run(
-    sql,
-    [
-  fullName,
-  nationalCode,
-  username,
-  password,
-  status,
-  id,
-],
-    function (err) {
-      if (err) {
-  console.error(err);
+  const cleanUsername =
+    username?.trim() || "";
 
-  return res.status(500).json({
-    success: false,
-    message: err.message,
-  });
-}
+  const cleanMobile =
+    mobile?.trim() || null;
 
-      res.json({
-        success: true,
-        message: "کاربر با موفقیت ویرایش شد.",
+  if (!cleanFullName) {
+    return res.status(400).json({
+      success: false,
+      message: "نام و نام خانوادگی الزامی است.",
+    });
+  }
+
+  if (!cleanUsername) {
+    return res.status(400).json({
+      success: false,
+      message: "نام کاربری الزامی است.",
+    });
+  }
+
+  // بررسی یکتا بودن نام کاربری برای سایر کاربران
+  db.get(
+    `
+    SELECT id
+    FROM users
+    WHERE username = ?
+      AND id != ?
+    `,
+    [cleanUsername, id],
+    (checkErr, existingUser) => {
+      if (checkErr) {
+        return res.status(500).json({
+          success: false,
+          message: checkErr.message,
+        });
+      }
+
+      if (existingUser) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "این نام کاربری قبلاً توسط کاربر دیگری استفاده شده است.",
+        });
+      }
+
+      let sql;
+      let params;
+
+      if (password) {
+        sql = `
+          UPDATE users
+          SET
+            fullName = ?,
+            username = ?,
+            password = ?,
+            mobile = ?,
+            status = ?
+          WHERE id = ?
+        `;
+
+        params = [
+          cleanFullName,
+          cleanUsername,
+          password,
+          cleanMobile,
+          status || "فعال",
+          id,
+        ];
+      } else {
+        sql = `
+          UPDATE users
+          SET
+            fullName = ?,
+            username = ?,
+            mobile = ?,
+            status = ?
+          WHERE id = ?
+        `;
+
+        params = [
+          cleanFullName,
+          cleanUsername,
+          cleanMobile,
+          status || "فعال",
+          id,
+        ];
+      }
+
+      db.run(sql, params, function (err) {
+        if (err) {
+          console.error(err);
+
+          return res.status(500).json({
+            success: false,
+            message: err.message,
+          });
+        }
+
+        res.json({
+          success: true,
+          message: "کاربر با موفقیت ویرایش شد.",
+        });
       });
     }
   );
