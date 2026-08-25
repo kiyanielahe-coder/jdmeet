@@ -10,12 +10,12 @@ const [password, setPassword] = useState("");
 const handleLogin = async () => {
   try {
     const response = await axios.post(
-      "http://localhost:5000/api/login",
-      {
-        username,
-        password,
-      }
-    );
+"/api/login",
+  {
+    username,
+    password,
+  }
+);
 
     if (response.data.success) {
       console.log(response.data.role);

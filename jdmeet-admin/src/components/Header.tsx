@@ -1,6 +1,12 @@
-import { Bell, Search, User } from "lucide-react";
+import { Bell, Search, User, LogOut } from "lucide-react";
 
 function Header() {
+  const handleLogout = () => {
+    localStorage.removeItem("loggedIn");
+    localStorage.removeItem("role");
+    window.location.reload();
+  };
+
   return (
     <div
       style={{
@@ -130,7 +136,6 @@ function Header() {
             display: "flex",
             alignItems: "center",
             gap: 12,
-            cursor: "pointer",
           }}
         >
           <div
@@ -168,6 +173,26 @@ function Header() {
             </div>
           </div>
         </div>
+
+        {/* دکمه خروج */}
+        <button
+          onClick={handleLogout}
+          title="خروج از حساب"
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: 12,
+            background: "#fff",
+            border: "1px solid #fecaca",
+            color: "#dc2626",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            cursor: "pointer",
+          }}
+        >
+          <LogOut size={20} />
+        </button>
       </div>
     </div>
   );
