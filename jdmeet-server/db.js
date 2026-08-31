@@ -110,6 +110,24 @@ async function initializeDatabase() {
     )
   `);
 
+  await run(`
+    CREATE TABLE IF NOT EXISTS meeting_settings (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      siteName TEXT NOT NULL DEFAULT 'JDMeet',
+      meetingDomain TEXT NOT NULL DEFAULT 'lg.jdeiut.ir',
+      allowGuest INTEGER NOT NULL DEFAULT 1,
+      defaultMeetingCodeEncrypted TEXT,
+      autoRecord INTEGER NOT NULL DEFAULT 0,
+      startWithAudioMuted INTEGER NOT NULL DEFAULT 0,
+      startWithVideoMuted INTEGER NOT NULL DEFAULT 0,
+      updatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  await run(`
+    INSERT OR IGNORE INTO meeting_settings (id, siteName, meetingDomain)
+    VALUES (1, 'JDMeet', 'lg.jdeiut.ir')
+  `);
   const duplicateMemberships = await all(`
     SELECT roomId, userId, COUNT(*) AS count
     FROM event_members

@@ -3,6 +3,7 @@ require("dotenv").config({ path: path.join(__dirname, ".env") });
 
 const bcrypt = require("bcryptjs");
 const cors = require("cors");
+const crypto = require("node:crypto");
 const express = require("express");
 const jwt = require("jsonwebtoken");
 const { authenticate, authorizeRoles } = require("./auth");
@@ -73,6 +74,58 @@ function normalizedRole(role, fallback = "user") {
   return USER_ROLES.has(role) ? role : fallback;
 }
 
+function normalizeMeetingDomain(value) {
+  const raw = String(value || "").trim();
+  if (!raw) throw new Error("MEETING_DOMAIN_REQUIRED");
+
+  const url = new URL(raw.includes("://") ? raw : `https://${raw}`);
+  if (!["http:", "https:"].includes(url.protocol) || !url.hostname) {
+    throw new Error("MEETING_DOMAIN_INVALID");
+  }
+  return url.host;
+}
+
+function encryptSetting(value) {
+  const key = crypto
+    .createHash("sha256")
+    .update(process.env.JWT_SECRET)
+    .digest();
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
+  const encrypted = Buffer.concat([
+    cipher.update(value, "utf8"),
+    cipher.final(),
+  ]);
+  const authTag = cipher.getAuthTag();
+
+  return [
+    "v1",
+    iv.toString("base64url"),
+    authTag.toString("base64url"),
+    encrypted.toString("base64url"),
+  ].join(".");
+}
+
+async function getMeetingSettings() {
+  return get("SELECT * FROM meeting_settings WHERE id = 1");
+}
+
+function publicMeetingSettings(settings) {
+  return {
+    siteName: settings.siteName,
+    meetingDomain: settings.meetingDomain,
+    allowGuest: Boolean(settings.allowGuest),
+    autoRecord: Boolean(settings.autoRecord),
+    startWithAudioMuted: Boolean(settings.startWithAudioMuted),
+    startWithVideoMuted: Boolean(settings.startWithVideoMuted),
+    hasDefaultMeetingCode: Boolean(settings.defaultMeetingCodeEncrypted),
+    capabilities: {
+      guestAccessEnforced: false,
+      defaultMeetingCodeApplied: false,
+      autoRecordSupported: false,
+    },
+  };
+}
 app.get("/", (req, res) => {
   res.send("JDMeet Backend Running...");
 });
@@ -129,9 +182,130 @@ app.post(
 app.use("/api", authenticate);
 
 app.get(
+  "/api/settings/meeting",
+  asyncHandler(async (req, res) => {
+    const settings = await getMeetingSettings();
+    return res.json({
+      success: true,
+      data: publicMeetingSettings(settings),
+    });
+  })
+);
+
+app.put(
+  "/api/settings/meeting",
+  authorizeRoles("admin"),
+  asyncHandler(async (req, res) => {
+    const current = await getMeetingSettings();
+    let meetingDomain;
+
+    try {
+      meetingDomain = normalizeMeetingDomain(
+        req.body.meetingDomain ?? current.meetingDomain
+      );
+    } catch {
+      return res.status(400).json({
+        success: false,
+        message: "دامنه Meeting معتبر نیست.",
+      });
+    }
+
+    const siteName =
+      String(req.body.siteName ?? current.siteName).trim() || current.siteName;
+    let encryptedCode = current.defaultMeetingCodeEncrypted;
+
+    if (req.body.clearDefaultMeetingCode === true) {
+      encryptedCode = null;
+    } else if (typeof req.body.defaultMeetingCode === "string") {
+      const code = req.body.defaultMeetingCode.trim();
+      if (code) encryptedCode = encryptSetting(code);
+    }
+
+    await run(
+      `UPDATE meeting_settings
+       SET siteName = ?, meetingDomain = ?, allowGuest = ?,
+           defaultMeetingCodeEncrypted = ?, autoRecord = ?,
+           startWithAudioMuted = ?, startWithVideoMuted = ?,
+           updatedAt = CURRENT_TIMESTAMP
+       WHERE id = 1`,
+      [
+        siteName,
+        meetingDomain,
+        (req.body.allowGuest ?? current.allowGuest) ? 1 : 0,
+        encryptedCode,
+        (req.body.autoRecord ?? current.autoRecord) ? 1 : 0,
+        (req.body.startWithAudioMuted ?? current.startWithAudioMuted) ? 1 : 0,
+        (req.body.startWithVideoMuted ?? current.startWithVideoMuted) ? 1 : 0,
+      ]
+    );
+
+    const updated = await getMeetingSettings();
+    return res.json({
+      success: true,
+      data: publicMeetingSettings(updated),
+      message: "تنظیمات Meeting ذخیره شد.",
+    });
+  })
+);
+
+app.get(
+  "/api/meetings/:roomName/config",
+  asyncHandler(async (req, res) => {
+    const [room, settings] = await Promise.all([
+      get(
+        `SELECT id, name, title, allowGuest, memberAccess, autoRecord,
+                password, guestCode
+         FROM rooms WHERE name = ?`,
+        [req.params.roomName]
+      ),
+      getMeetingSettings(),
+    ]);
+
+    if (!room) {
+      return res.status(404).json({
+        success: false,
+        message: "رویداد پیدا نشد.",
+      });
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        roomName: room.name,
+        subject: room.title || room.name,
+        domain: settings.meetingDomain,
+        siteName: settings.siteName,
+        startWithAudioMuted: Boolean(settings.startWithAudioMuted),
+        startWithVideoMuted: Boolean(settings.startWithVideoMuted),
+        policies: {
+          allowGuestRequested:
+            Boolean(settings.allowGuest) && Boolean(room.allowGuest),
+          memberAccess: room.memberAccess || "participant",
+          autoRecordRequested:
+            Boolean(settings.autoRecord) || Boolean(room.autoRecord),
+          hasMeetingCode: Boolean(
+            settings.defaultMeetingCodeEncrypted ||
+              room.password ||
+              room.guestCode
+          ),
+        },
+        capabilities: {
+          guestAccessEnforced: false,
+          meetingCodeApplied: false,
+          autoRecordSupported: false,
+        },
+      },
+    });
+  })
+);
+app.get(
   "/api/rooms",
   asyncHandler(async (req, res) => {
-    const rows = await all("SELECT * FROM rooms ORDER BY id DESC");
+    const rows = await all(
+      `SELECT id, name, title, teacher, date, time, type, allowGuest,
+              memberAccess, autoRecord, status
+       FROM rooms ORDER BY id DESC`
+    );
     res.json({ success: true, data: rows });
   })
 );

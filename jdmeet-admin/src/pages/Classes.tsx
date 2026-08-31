@@ -352,12 +352,7 @@ function Classes() {
         <Tooltip title="ورود به جلسه">
 
           <IconButton
-            onClick={() =>
-              window.open(
-                `https://lg.jdeiut.ir/${item.name}`,
-                "_blank"
-              )
-            }
+            onClick={() => navigate(`/meeting/${encodeURIComponent(item.name)}`)}
           >
             <LaunchIcon />
           </IconButton>
@@ -396,10 +391,7 @@ function Classes() {
         onClick={() => {
           if (!selectedRoom) return;
 
-          window.open(
-            `https://lg.jdeiut.ir/${selectedRoom.name}`,
-            "_blank"
-          );
+          navigate(`/meeting/${encodeURIComponent(selectedRoom.name)}`);
 
           closeMenu();
         }}
@@ -412,7 +404,10 @@ function Classes() {
           if (!selectedRoom) return;
 
           navigator.clipboard.writeText(
-            `https://lg.jdeiut.ir/${selectedRoom.name}`
+            new URL(
+              `/meeting/${encodeURIComponent(selectedRoom.name)}`,
+              window.location.origin
+            ).toString()
           );
 
           alert("لینک رویداد کپی شد.");
