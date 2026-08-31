@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState } from "react";
-import axios from "axios";
+import { api } from "../services/api";
 
 import Tooltip from "@mui/material/Tooltip";
 import IconButton from "@mui/material/IconButton";
@@ -13,6 +13,7 @@ import LaunchIcon from "@mui/icons-material/Launch";
 import CreateRoomModal from "../components/CreateRoomModal";
 import EventMembersModal from "../components/EventMembersModal";
 import "./Classes.css";
+import { isCurrentUserAdmin } from "../services/auth";
 
 type Room = {
   id: number;
@@ -27,6 +28,7 @@ type Room = {
 };
 
 function Classes() {
+  const isAdmin = isCurrentUserAdmin();
   const [rooms, setRooms] = useState<Room[]>([]);
   const [search, setSearch] = useState("");
 
@@ -60,9 +62,7 @@ function Classes() {
 
   async function loadRooms() {
     try {
-      const res = await axios.get(
-        "http://localhost:5000/api/rooms"
-      );
+      const res = await api.get("/rooms");
 
       setRooms(res.data.data);
     } catch (err) {
@@ -87,8 +87,8 @@ function Classes() {
     onCreate={async (room) => {
       try {
         if (editingRoom) {
-          await axios.put(
-            `http://localhost:5000/api/rooms/${editingRoom.id}`,
+          await api.put(
+            `/rooms/${editingRoom.id}`,
             {
               name: room.title.replace(/\s+/g, "-").toLowerCase(),
               title: room.title,
@@ -105,8 +105,8 @@ function Classes() {
             }
           );
         } else {
-          await axios.post(
-            "http://localhost:5000/api/rooms",
+          await api.post(
+            "/rooms",
             {
               name: room.title
                 .replace(/\s+/g, "-")
@@ -159,12 +159,14 @@ function Classes() {
         }
       />
 
-      <button
-        className="create-btn"
-        onClick={() => setOpen(true)}
-      >
-        + ایجاد رویداد
-      </button>
+      {isAdmin && (
+        <button
+          className="create-btn"
+          onClick={() => setOpen(true)}
+        >
+          + ایجاد رویداد
+        </button>
+      )}
 
     </div>
 
@@ -425,9 +427,9 @@ function Classes() {
         📋 کپی لینک
       </MenuItem>
 
-      <Divider />
+      {isAdmin && <Divider />}
 
-      <MenuItem
+      {isAdmin && <MenuItem
   onClick={() => {
     if (!selectedRoom) return;
 
@@ -437,9 +439,9 @@ function Classes() {
   }}
 >
   ✏️ ویرایش
-</MenuItem>
+</MenuItem>}
 
-      <MenuItem
+      {isAdmin && <MenuItem
         onClick={() => {
           if (!selectedRoom) return;
           setMembersOpen(true);
@@ -447,7 +449,7 @@ function Classes() {
         }}
       >
         👥 اعضای رویداد
-      </MenuItem>
+      </MenuItem>}
 
       <MenuItem disabled>
         📊 گزارش حضور
@@ -457,9 +459,9 @@ function Classes() {
         🎥 فایل‌های ضبط‌شده
       </MenuItem>
 
-      <Divider />
+      {isAdmin && <Divider />}
 
-      <MenuItem
+      {isAdmin && <MenuItem
         sx={{ color: "red" }}
         onClick={async () => {
           if (!selectedRoom) return;
@@ -472,9 +474,7 @@ function Classes() {
             return;
 
           try {
-            await axios.delete(
-              `http://localhost:5000/api/rooms/${selectedRoom.id}`
-            );
+            await api.delete(`/rooms/${selectedRoom.id}`);
 
             await loadRooms();
 
@@ -485,7 +485,7 @@ function Classes() {
         }}
       >
         🗑 حذف
-      </MenuItem>
+      </MenuItem>}
 
     </Menu>
 <EventMembersModal

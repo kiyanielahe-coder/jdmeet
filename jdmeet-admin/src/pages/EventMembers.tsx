@@ -1,14 +1,12 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import { api } from "../services/api";
 function EventMembers() {
     const [users, setUsers] = useState<any[]>([]);
 const [manager, setManager] = useState("");
 useEffect(() => {
   const fetchUsers = async () => {
     try {
-      const response = await axios.get(
-        "http://localhost:5000/api/users"
-      );
+      const response = await api.get("/users");
 
       setUsers(response.data.data);
     } catch (error) {

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import { api } from "../services/api";
 
 type Role = "manager" | "presenter" | "participant";
 
@@ -94,9 +94,7 @@ export default function EventMembersModal({
     try {
       setLoading(true);
 
-      const membersRes = await axios.get(
-        `http://localhost:5000/api/rooms/${room.id}/members`
-      );
+      const membersRes = await api.get(`/rooms/${room.id}/members`);
 
       setMembers(membersRes.data.data || []);
     } catch (error) {
@@ -139,8 +137,8 @@ export default function EventMembersModal({
       setSearching(true);
       console.log("SEARCH:", text);
 
-      const response = await axios.get(
-        "http://localhost:5000/api/users",
+      const response = await api.get(
+        "/users",
         {
           params: {
             search: text,
@@ -201,8 +199,8 @@ export default function EventMembersModal({
     }
 
     try {
-      await axios.post(
-        `http://localhost:5000/api/rooms/${room.id}/members`,
+      await api.post(
+        `/rooms/${room.id}/members`,
         {
           userId: selectedUser.id,
           role: addingRole,
@@ -231,9 +229,7 @@ export default function EventMembersModal({
     }
 
     try {
-      await axios.delete(
-        `http://localhost:5000/api/event-members/${memberId}`
-      );
+      await api.delete(`/event-members/${memberId}`);
 
       await loadData();
     } catch (error: any) {
@@ -290,8 +286,8 @@ export default function EventMembersModal({
     try {
       setCreatingUser(true);
 
-      await axios.post(
-        "http://localhost:5000/api/users",
+      await api.post(
+        "/users",
         {
           firstName,
           lastName,

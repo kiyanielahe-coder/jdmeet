@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
-import axios from "axios";
+import { api } from "../services/api";
 
 type Room = {
   id: number;
@@ -23,8 +23,8 @@ function EventReports() {
   const [type, setType] = useState("");
 
   useEffect(() => {
-    axios
-      .get("/api/rooms")
+    api
+      .get("/rooms")
       .then((response) => {
         setRooms(response.data.data || []);
       })

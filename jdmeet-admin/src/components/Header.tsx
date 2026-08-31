@@ -1,9 +1,10 @@
 import { Bell, Search, User, LogOut } from "lucide-react";
+import { clearAuthSession, getAuthUser } from "../services/auth";
 
 function Header() {
+  const authUser = getAuthUser();
   const handleLogout = () => {
-    localStorage.removeItem("loggedIn");
-    localStorage.removeItem("role");
+    clearAuthSession();
     window.location.reload();
   };
 
@@ -160,7 +161,7 @@ function Header() {
                 color: "#0f172a",
               }}
             >
-              مدیر سیستم
+              {authUser?.fullName || authUser?.username || "کاربر"}
             </div>
 
             <div
@@ -169,7 +170,7 @@ function Header() {
                 fontSize: 13,
               }}
             >
-              Administrator
+              {authUser?.role === "admin" ? "Administrator" : "User"}
             </div>
           </div>
         </div>

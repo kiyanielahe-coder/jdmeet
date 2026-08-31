@@ -11,21 +11,20 @@ import RoomSettings from "../pages/RoomSettings";
 import Reports from "../pages/Reports";
 import EventReports from "../pages/EventReports";
 import Meeting from "../pages/Meeting";
+import { clearAuthSession, hasValidAuthSession } from "../services/auth";
 
 function AppRouter() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(hasValidAuthSession);
   useEffect(() => {
-  const logged = localStorage.getItem("loggedIn");
-
-  if (logged === "true") {
-    setIsLoggedIn(true);
-  }
-}, []);
+    if (!hasValidAuthSession()) {
+      clearAuthSession();
+      setIsLoggedIn(false);
+    }
+  }, []);
  if (!isLoggedIn) {
   return (
     <Login
       onLogin={() => {
-        localStorage.setItem("loggedIn", "true");
         setIsLoggedIn(true);
       }}
     />

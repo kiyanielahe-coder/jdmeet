@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import { api } from "../services/api";
 
 function Dashboard() {
   const [dashboard, setDashboard] = useState({
@@ -16,15 +16,11 @@ function Dashboard() {
 
   const loadDashboard = async () => {
     try {
-      const dashboardRes = await axios.get(
-        "http://localhost:5000/api/dashboard"
-      );
+      const dashboardRes = await api.get("/dashboard");
 
       setDashboard(dashboardRes.data.data);
 
-      const meetingsRes = await axios.get(
-        "http://localhost:5000/api/dashboard/rooms"
-      );
+      const meetingsRes = await api.get("/dashboard/rooms");
 
       setTodayMeetings(meetingsRes.data.data);
     } catch (err) {

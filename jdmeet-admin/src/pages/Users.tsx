@@ -1,4 +1,5 @@
 import "./Users.css";
+import { isCurrentUserAdmin } from "../services/auth";
 
 import {
   getUsers,
@@ -29,6 +30,7 @@ type User = {
 };
 
 function Users() {
+  const isAdmin = isCurrentUserAdmin();
   const [open, setOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
 
@@ -196,15 +198,17 @@ function Users() {
             </option>
           </select>
 
-          <button
-            className="users-create-btn"
-            onClick={() => {
-              setEditingUser(null);
-              setOpen(true);
-            }}
-          >
-            + افزودن کاربر
-          </button>
+          {isAdmin && (
+            <button
+              className="users-create-btn"
+              onClick={() => {
+                setEditingUser(null);
+                setOpen(true);
+              }}
+            >
+              + افزودن کاربر
+            </button>
+          )}
         </div>
       </div>
 
@@ -279,7 +283,7 @@ function Users() {
                 <th>شماره موبایل</th>
                 <th>وضعیت</th>
                 <th>آخرین ورود</th>
-                <th>عملیات</th>
+                {isAdmin && <th>عملیات</th>}
               </tr>
             </thead>
 
@@ -329,7 +333,7 @@ function Users() {
                       {user.lastLogin || "-"}
                     </td>
 
-                    <td className="user-action-cell">
+                    {isAdmin && <td className="user-action-cell">
 
                       <IconButton
                         className="user-action-button"
@@ -341,7 +345,7 @@ function Users() {
                         <MoreVertIcon fontSize="small" />
                       </IconButton>
 
-                    </td>
+                    </td>}
 
                   </tr>
                 );
@@ -350,7 +354,7 @@ function Users() {
               {filteredUsers.length === 0 && (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={isAdmin ? 6 : 5}
                     className="users-empty"
                   >
                     کاربری برای نمایش وجود ندارد.
@@ -368,7 +372,7 @@ function Users() {
 
       {/* Menu */}
 
-      <Menu
+      {isAdmin && <Menu
         anchorEl={anchorEl}
         open={Boolean(anchorEl)}
         onClose={handleMenuClose}
@@ -443,7 +447,7 @@ function Users() {
           تغییر رمز عبور
         </MenuItem>
 
-      </Menu>
+      </Menu>}
 
       {/* Password Modal */}
 

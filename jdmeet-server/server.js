@@ -1,760 +1,538 @@
-const express = require("express");
+const path = require("node:path");
+require("dotenv").config({ path: path.join(__dirname, ".env") });
+
+const bcrypt = require("bcryptjs");
 const cors = require("cors");
-const db = require("./db");
+const express = require("express");
+const jwt = require("jsonwebtoken");
+const { authenticate, authorizeRoles } = require("./auth");
+const { db, ready } = require("./db");
+
 const app = express();
+const PORT = Number(process.env.PORT) || 5000;
+const USER_ROLES = new Set(["admin", "manager", "user"]);
 
 app.use(cors());
 app.use(express.json());
+
+function asyncHandler(handler) {
+  return (req, res, next) => {
+    Promise.resolve(handler(req, res, next)).catch(next);
+  };
+}
+
+function get(sql, params = []) {
+  return new Promise((resolve, reject) => {
+    db.get(sql, params, (error, row) => {
+      if (error) reject(error);
+      else resolve(row);
+    });
+  });
+}
+
+function all(sql, params = []) {
+  return new Promise((resolve, reject) => {
+    db.all(sql, params, (error, rows) => {
+      if (error) reject(error);
+      else resolve(rows);
+    });
+  });
+}
+
+function run(sql, params = []) {
+  return new Promise((resolve, reject) => {
+    db.run(sql, params, function (error) {
+      if (error) reject(error);
+      else resolve(this);
+    });
+  });
+}
+
+function publicUser(user) {
+  return {
+    id: user.id,
+    fullName: user.fullName,
+    nationalCode: user.nationalCode || null,
+    username: user.username,
+    mobile: user.mobile || null,
+    status: user.status,
+    role: user.role || "user",
+  };
+}
+
+function isInactive(status) {
+  return status === "inactive" || status === "غیرفعال";
+}
+
+function normalizedRole(role, fallback = "user") {
+  return USER_ROLES.has(role) ? role : fallback;
+}
 
 app.get("/", (req, res) => {
   res.send("JDMeet Backend Running...");
 });
 
-const PORT = 5000;
-app.get("/api/rooms", (req, res) => {
-  db.all("SELECT * FROM rooms ORDER BY id DESC", [], (err, rows) => {
-    if (err) {
-      return res.status(500).json({
+// Login is intentionally the only public /api endpoint.
+app.post(
+  "/api/login",
+  asyncHandler(async (req, res) => {
+    const username = String(req.body.username || "").trim();
+    const password = String(req.body.password || "");
+
+    if (!username || !password) {
+      return res.status(400).json({
         success: false,
-        message: err.message,
+        message: "نام کاربری و رمز عبور الزامی است.",
       });
     }
+
+    const user = await get("SELECT * FROM users WHERE username = ?", [
+      username,
+    ]);
+    const passwordMatches =
+      user && (await bcrypt.compare(password, user.password));
+
+    if (!user || !passwordMatches) {
+      return res.status(401).json({
+        success: false,
+        message: "نام کاربری یا رمز عبور اشتباه است.",
+      });
+    }
+
+    if (isInactive(user.status)) {
+      return res.status(403).json({
+        success: false,
+        message: "حساب کاربری غیرفعال است.",
+      });
+    }
+
+    const safeUser = publicUser(user);
+    const token = jwt.sign(
+      {
+        sub: String(user.id),
+        username: user.username,
+        role: safeUser.role,
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRES_IN || "8h" }
+    );
+
+    return res.json({ success: true, token, user: safeUser });
+  })
+);
+
+app.use("/api", authenticate);
+
+app.get(
+  "/api/rooms",
+  asyncHandler(async (req, res) => {
+    const rows = await all("SELECT * FROM rooms ORDER BY id DESC");
+    res.json({ success: true, data: rows });
+  })
+);
+
+app.post(
+  "/api/rooms",
+  authorizeRoles("admin"),
+  asyncHandler(async (req, res) => {
+    const {
+      name,
+      title,
+      teacher,
+      date,
+      time,
+      type,
+      password,
+      allowGuest,
+      guestCode,
+      memberAccess,
+      autoRecord,
+      status,
+    } = req.body;
+
+    const result = await run(
+      `INSERT INTO rooms
+       (name, title, teacher, date, time, type, password, allowGuest,
+        guestCode, memberAccess, autoRecord, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        name,
+        title,
+        teacher,
+        date,
+        time,
+        type,
+        password,
+        allowGuest ? 1 : 0,
+        guestCode,
+        memberAccess,
+        autoRecord ? 1 : 0,
+        status,
+      ]
+    );
 
     res.json({
       success: true,
-      data: rows,
+      id: result.lastID,
+      message: "کلاس با موفقیت ایجاد شد.",
     });
-  });
-});
-app.post("/api/rooms", (req, res) => {
-  const {
-  name,
-  title,
-  teacher,
-  date,
-  time,
-  type,
-  password,
-  allowGuest,
-  guestCode,
-  memberAccess,
-  autoRecord,
-  status,
-} = req.body;
+  })
+);
 
-  const sql = `
-   INSERT INTO rooms
-(
-name,
-title,
-teacher,
-date,
-time,
-type,
-password,
-allowGuest,
-guestCode,
-memberAccess,
-autoRecord,
-status
-)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `;
+app.put(
+  "/api/rooms/:id",
+  authorizeRoles("admin"),
+  asyncHandler(async (req, res) => {
+    const {
+      name,
+      title,
+      teacher,
+      date,
+      time,
+      type,
+      password,
+      allowGuest,
+      guestCode,
+      memberAccess,
+      autoRecord,
+      status,
+    } = req.body;
 
-  db.run(
-    sql,
-    [
-  name,
-  title,
-  teacher,
-  date,
-  time,
-  type,
-  password,
-  allowGuest ? 1 : 0,
-  guestCode,
-  memberAccess,
-  autoRecord ? 1 : 0,
-  status,
-],
-    function (err) {
-      if (err) {
-        return res.status(500).json({
-          success: false,
-          message: err.message,
-        });
-      }
+    await run(
+      `UPDATE rooms SET name = ?, title = ?, teacher = ?, date = ?, time = ?,
+       type = ?, password = ?, allowGuest = ?, guestCode = ?, memberAccess = ?,
+       autoRecord = ?, status = ? WHERE id = ?`,
+      [
+        name,
+        title,
+        teacher,
+        date,
+        time,
+        type,
+        password,
+        allowGuest ? 1 : 0,
+        guestCode,
+        memberAccess,
+        autoRecord ? 1 : 0,
+        status,
+        req.params.id,
+      ]
+    );
 
-      res.json({
-        success: true,
-        id: this.lastID,
-        message: "کلاس با موفقیت ایجاد شد.",
-      });
+    res.json({ success: true, message: "رویداد با موفقیت ویرایش شد." });
+  })
+);
+
+app.delete(
+  "/api/rooms/:id",
+  authorizeRoles("admin"),
+  asyncHandler(async (req, res) => {
+    await run("DELETE FROM rooms WHERE id = ?", [req.params.id]);
+    res.json({ success: true, message: "کلاس با موفقیت حذف شد." });
+  })
+);
+
+app.get(
+  "/api/users",
+  asyncHandler(async (req, res) => {
+    const search = String(req.query.search || "").trim();
+    let sql = `SELECT id, fullName, nationalCode, username, mobile, status, role
+               FROM users`;
+    const params = [];
+
+    if (search) {
+      sql += " WHERE fullName LIKE ? OR username LIKE ? OR nationalCode LIKE ?";
+      const value = `%${search}%`;
+      params.push(value, value, value);
     }
-  );
-});
-app.delete("/api/rooms/:id", (req, res) => {
-  const { id } = req.params;
 
-  db.run("DELETE FROM rooms WHERE id = ?", [id], function (err) {
-    if (err) {
-      return res.status(500).json({
+    sql += " ORDER BY id DESC";
+    const users = await all(sql, params);
+    res.json({ success: true, data: users.map(publicUser) });
+  })
+);
+
+app.post(
+  "/api/users",
+  authorizeRoles("admin"),
+  asyncHandler(async (req, res) => {
+    const firstName = String(req.body.firstName || "").trim();
+    const lastName = String(req.body.lastName || "").trim();
+    const username = String(req.body.username || "").trim();
+    const password = String(req.body.password || "");
+    const mobile = String(req.body.mobile || "").trim() || null;
+    const nationalCode =
+      String(req.body.nationalCode || "").trim() ||
+      `legacy-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const status = req.body.status || "فعال";
+    const role = normalizedRole(req.body.role);
+
+    if (!firstName || !lastName || !username) {
+      return res.status(400).json({
         success: false,
-        message: err.message,
+        message: "نام، نام خانوادگی و نام کاربری الزامی هستند.",
       });
     }
+    if (password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: "رمز عبور باید حداقل 6 کاراکتر باشد.",
+      });
+    }
+    if (await get("SELECT id FROM users WHERE username = ?", [username])) {
+      return res.status(400).json({
+        success: false,
+        message: "این نام کاربری قبلاً ثبت شده است.",
+      });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 12);
+    const result = await run(
+      `INSERT INTO users
+       (fullName, nationalCode, username, password, mobile, status, role)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [
+        `${firstName} ${lastName}`.trim(),
+        nationalCode,
+        username,
+        passwordHash,
+        mobile,
+        status,
+        role,
+      ]
+    );
 
     res.json({
       success: true,
-      message: "کلاس با موفقیت حذف شد.",
+      id: result.lastID,
+      message: "کاربر با موفقیت ایجاد شد.",
     });
-  });
-});
-app.put("/api/rooms/:id", (req, res) => {
-  const { id } = req.params;
+  })
+);
 
-  const {
-  name,
-  title,
-  teacher,
-  date,
-  time,
-  type,
-  password,
-  allowGuest,
-  guestCode,
-  memberAccess,
-  autoRecord,
-  status,
-} = req.body;
-
-  const sql = `
-    UPDATE rooms
-    SET
-      name = ?,
-      title = ?,
-      teacher = ?,
-      date = ?,
-      time = ?,
-      type = ?,
-      password = ?,
-      allowGuest = ?,
-guestCode = ?,
-memberAccess = ?,
-autoRecord = ?,
-status = ?
-    WHERE id = ?
-  `;
-
-  db.run(
-    sql,
-    [
-  name,
-  title,
-  teacher,
-  date,
-  time,
-  type,
-  password,
-  allowGuest ? 1 : 0,
-  guestCode,
-  memberAccess,
-  autoRecord ? 1 : 0,
-  status,
-  id,
-],
-    function (err) {
-      if (err) {
-        return res.status(500).json({
-          success: false,
-          message: err.message,
-        });
-      }
-
-      res.json({
-        success: true,
-        message: "رویداد با موفقیت ویرایش شد.",
+app.put(
+  "/api/users/:id",
+  authorizeRoles("admin"),
+  asyncHandler(async (req, res) => {
+    const currentUser = await get("SELECT * FROM users WHERE id = ?", [
+      req.params.id,
+    ]);
+    if (!currentUser) {
+      return res.status(404).json({
+        success: false,
+        message: "کاربر پیدا نشد.",
       });
     }
-  );
-});
-app.get("/api/users", (req, res) => {
-  const search = (req.query.search || "").trim();
 
-  let sql = `
-    SELECT
-      id,
+    const fullName =
+      String(req.body.fullName || "").trim() ||
+      `${String(req.body.firstName || "").trim()} ${String(
+        req.body.lastName || ""
+      ).trim()}`.trim();
+    const username = String(req.body.username || "").trim();
+    const mobile = String(req.body.mobile || "").trim() || null;
+    const nationalCode =
+      String(req.body.nationalCode || "").trim() || currentUser.nationalCode;
+    const status = req.body.status || "فعال";
+    const role = normalizedRole(req.body.role, currentUser.role || "user");
+
+    if (!fullName || !username) {
+      return res.status(400).json({
+        success: false,
+        message: "نام و نام کاربری الزامی هستند.",
+      });
+    }
+
+    const duplicate = await get(
+      "SELECT id FROM users WHERE username = ? AND id != ?",
+      [username, req.params.id]
+    );
+    if (duplicate) {
+      return res.status(400).json({
+        success: false,
+        message: "این نام کاربری قبلاً توسط کاربر دیگری استفاده شده است.",
+      });
+    }
+
+    const params = [
       fullName,
+      nationalCode,
       username,
       mobile,
-      status
-    FROM users
-  `;
+      status,
+      role,
+    ];
+    let sql = `UPDATE users SET fullName = ?, nationalCode = ?, username = ?,
+               mobile = ?, status = ?, role = ?`;
 
-  const params = [];
+    if (req.body.password) {
+      if (String(req.body.password).length < 6) {
+        return res.status(400).json({
+          success: false,
+          message: "رمز عبور باید حداقل 6 کاراکتر باشد.",
+        });
+      }
+      sql += ", password = ?";
+      params.push(await bcrypt.hash(String(req.body.password), 12));
+    }
 
-  if (search) {
-    sql += `
-      WHERE
-        fullName LIKE ?
-        OR username LIKE ?
-    `;
+    sql += " WHERE id = ?";
+    params.push(req.params.id);
+    await run(sql, params);
+    res.json({ success: true, message: "کاربر با موفقیت ویرایش شد." });
+  })
+);
 
-    const searchValue = `%${search}%`;
-    params.push(searchValue, searchValue);
-  }
-
-  sql += " ORDER BY id DESC";
-
-  db.all(sql, params, (err, rows) => {
-    if (err) {
-      return res.status(500).json({
+app.put(
+  "/api/users/:id/password",
+  authorizeRoles("admin"),
+  asyncHandler(async (req, res) => {
+    const password = String(req.body.password || "");
+    if (password.length < 6) {
+      return res.status(400).json({
         success: false,
-        message: err.message,
+        message: "رمز عبور باید حداقل 6 کاراکتر باشد.",
       });
     }
 
+    await run("UPDATE users SET password = ? WHERE id = ?", [
+      await bcrypt.hash(password, 12),
+      req.params.id,
+    ]);
+    res.json({ success: true, message: "رمز عبور با موفقیت تغییر کرد." });
+  })
+);
+
+app.delete(
+  "/api/users/:id",
+  authorizeRoles("admin"),
+  asyncHandler(async (req, res) => {
+    await run("DELETE FROM users WHERE id = ?", [req.params.id]);
+    res.json({ success: true, message: "کاربر با موفقیت حذف شد." });
+  })
+);
+
+app.get(
+  "/api/rooms/:id/members",
+  asyncHandler(async (req, res) => {
+    const rows = await all(
+      `SELECT event_members.id, event_members.role, users.id AS userId,
+              users.fullName, users.username, users.mobile
+       FROM event_members JOIN users ON users.id = event_members.userId
+       WHERE event_members.roomId = ? ORDER BY event_members.id ASC`,
+      [req.params.id]
+    );
+    res.json({ success: true, data: rows });
+  })
+);
+
+app.post(
+  "/api/rooms/:id/members",
+  authorizeRoles("admin"),
+  asyncHandler(async (req, res) => {
+    const { userId, role } = req.body;
+    const allowedRoles = new Set(["manager", "presenter", "participant"]);
+    if (!userId || !allowedRoles.has(role)) {
+      return res.status(400).json({
+        success: false,
+        message: "کاربر و نقش معتبر الزامی هستند.",
+      });
+    }
+
+    const existing = await get(
+      "SELECT id, role FROM event_members WHERE roomId = ? AND userId = ?",
+      [req.params.id, userId]
+    );
+    if (existing) {
+      return res.status(400).json({
+        success: false,
+        message: "این کاربر قبلاً عضو این رویداد است.",
+      });
+    }
+
+    const result = await run(
+      "INSERT INTO event_members (roomId, userId, role) VALUES (?, ?, ?)",
+      [req.params.id, userId, role]
+    );
     res.json({
       success: true,
-      data: rows,
+      id: result.lastID,
+      message: "عضو با موفقیت اضافه شد.",
     });
-  });
-});
-app.post("/api/users", (req, res) => {
-  const {
-  firstName,
-  lastName,
-  username,
-  password,
-  mobile,
-  status,
-} = req.body;
+  })
+);
 
-const cleanFirstName = firstName?.trim() || "";
-const cleanLastName = lastName?.trim() || "";
-const cleanUsername = username?.trim() || "";
-const cleanPassword = password || "";
-const cleanMobile = mobile?.trim() || null;
-const cleanStatus = status || "فعال";
+app.delete(
+  "/api/event-members/:id",
+  authorizeRoles("admin"),
+  asyncHandler(async (req, res) => {
+    await run("DELETE FROM event_members WHERE id = ?", [req.params.id]);
+    res.json({ success: true });
+  })
+);
 
-if (!cleanFirstName) {
-  return res.status(400).json({
-    success: false,
-    message: "نام الزامی است.",
-  });
-}
+app.delete(
+  "/api/rooms/members/:id",
+  authorizeRoles("admin"),
+  asyncHandler(async (req, res) => {
+    await run("DELETE FROM room_members WHERE id = ?", [req.params.id]);
+    res.json({ success: true });
+  })
+);
 
-if (!cleanLastName) {
-  return res.status(400).json({
-    success: false,
-    message: "نام خانوادگی الزامی است.",
-  });
-}
-
-if (!cleanUsername) {
-  return res.status(400).json({
-    success: false,
-    message: "نام کاربری الزامی است.",
-  });
-}
-
-if (!cleanPassword) {
-  return res.status(400).json({
-    success: false,
-    message: "رمز عبور الزامی است.",
-  });
-}
-
-const cleanFullName =
-  `${cleanFirstName} ${cleanLastName}`.trim();
-  // نام کاربری باید در کل سامانه یکتا باشد
-  db.get(
-    "SELECT id FROM users WHERE username = ?",
-    [cleanUsername],
-    (err, existingUser) => {
-      if (err) {
-        return res.status(500).json({
-          success: false,
-          message: err.message,
-        });
-      }
-
-      if (existingUser) {
-        return res.status(400).json({
-          success: false,
-          message: "این نام کاربری قبلاً ثبت شده است.",
-        });
-      }
-
-      // nationalCode ستون قدیمی دیتابیس است.
-      // فعلاً برای حفظ سازگاری دیتابیس یک مقدار داخلی یکتا در آن می‌گذاریم.
-      const legacyNationalCode =
-        `legacy-${Date.now()}-${Math.random()
-          .toString(36)
-          .slice(2, 8)}`;
-
-      const sql = `
-        INSERT INTO users
-        (
-          fullName,
-          nationalCode,
-          username,
-          password,
-          mobile,
-          status
-        )
-        VALUES (?, ?, ?, ?, ?, ?)
-      `;
-
-      db.run(
-        sql,
-        [
-          cleanFullName,
-          legacyNationalCode,
-          cleanUsername,
-          cleanPassword,
-          cleanMobile,
-          cleanStatus,
-        ],
-        function (insertErr) {
-          if (insertErr) {
-            console.error(insertErr);
-
-            return res.status(500).json({
-              success: false,
-              message: insertErr.message,
-            });
-          }
-
-          res.json({
-            success: true,
-            id: this.lastID,
-            message: "کاربر با موفقیت ایجاد شد.",
-          });
-        }
-      );
-    }
-  );
-});
-app.get("/api/rooms/:id/members", (req, res) => {
-  const { id } = req.params;
-
-  db.all(
-    `
-    SELECT
-      event_members.id,
-      event_members.role,
-      users.id AS userId,
-      users.fullName,
-      users.username,
-      users.mobile
-    FROM event_members
-    JOIN users
-      ON users.id = event_members.userId
-    WHERE event_members.roomId = ?
-    ORDER BY event_members.id ASC
-    `,
-    [id],
-    (err, rows) => {
-      if (err) {
-        return res.status(500).json({
-          success: false,
-          message: err.message,
-        });
-      }
-
-      res.json({
-        success: true,
-        data: rows,
-      });
-    }
-  );
-});
-app.post("/api/rooms/:id/members", (req, res) => {
-  const { id } = req.params;
-  const { userId, role } = req.body;
-
-  if (!userId || !role) {
-    return res.status(400).json({
-      success: false,
-      message: "کاربر و نقش الزامی هستند.",
-    });
-  }
-
-  const allowedRoles = [
-  "manager",
-  "presenter",
-  "participant",
-];
-
-  if (!allowedRoles.includes(role)) {
-    return res.status(400).json({
-      success: false,
-      message: "نقش انتخاب‌شده معتبر نیست.",
-    });
-  }
-
-  // بررسی اینکه کاربر قبلاً در همین رویداد عضو نباشد
-  db.get(
-    `
-    SELECT
-      event_members.id,
-      event_members.role,
-      users.fullName
-    FROM event_members
-    JOIN users ON users.id = event_members.userId
-    WHERE event_members.roomId = ?
-      AND event_members.userId = ?
-    `,
-    [id, userId],
-    (checkErr, existingMember) => {
-      if (checkErr) {
-        return res.status(500).json({
-          success: false,
-          message: checkErr.message,
-        });
-      }
-
-      if (existingMember) {
-        const roleNames = {
-  manager: "مدیر",
-  presenter: "ارائه‌کننده",
-  participant: "شرکت‌کننده",
-};
-        return res.status(400).json({
-          success: false,
-          message: `این کاربر قبلاً با نقش «${
-            roleNames[existingMember.role] ||
-            existingMember.role
-          }» عضو این رویداد است.`,
-        });
-      }
-
-      db.run(
-        `
-        INSERT INTO event_members
-        (roomId, userId, role)
-        VALUES (?, ?, ?)
-        `,
-        [id, userId, role],
-        function (err) {
-          if (err) {
-            return res.status(500).json({
-              success: false,
-              message: err.message,
-            });
-          }
-
-          res.json({
-            success: true,
-            id: this.lastID,
-            message: "عضو با موفقیت اضافه شد.",
-          });
-        }
-      );
-    }
-  );
-});
-app.delete("/api/event-members/:id", (req, res) => {
-  db.run(
-    "DELETE FROM event_members WHERE id=?",
-    [req.params.id],
-    function (err) {
-      if (err)
-        return res.status(500).json({
-          success: false,
-          message: err.message,
-        });
-
-      res.json({
-        success: true,
-      });
-    }
-  );
-});
-
-app.delete("/api/users/:id", (req, res) => {
-  const { id } = req.params;
-
-  db.run("DELETE FROM users WHERE id = ?", [id], function (err) {
-    if (err) {
-      return res.status(500).json({
-        success: false,
-        message: err.message,
-      });
-    }
-
+app.get(
+  "/api/dashboard",
+  asyncHandler(async (req, res) => {
+    const users = await get("SELECT COUNT(*) AS totalUsers FROM users");
+    const rooms = await get("SELECT COUNT(*) AS totalRooms FROM rooms");
+    const active = await get(
+      "SELECT COUNT(*) AS activeRooms FROM rooms WHERE status IN ('فعال', 'active')"
+    );
     res.json({
       success: true,
-      message: "کاربر با موفقیت حذف شد.",
+      data: {
+        totalUsers: users.totalUsers,
+        totalRooms: rooms.totalRooms,
+        activeRooms: active.activeRooms,
+      },
     });
+  })
+);
+
+app.get(
+  "/api/dashboard/rooms",
+  asyncHandler(async (req, res) => {
+    const rows = await all(
+      "SELECT title, teacher, time FROM rooms ORDER BY id DESC LIMIT 5"
+    );
+    res.json({ success: true, data: rows });
+  })
+);
+
+app.use((error, req, res, next) => {
+  console.error(error);
+  if (res.headersSent) return next(error);
+  return res.status(500).json({
+    success: false,
+    message: "خطای داخلی سرور.",
   });
 });
-app.put("/api/users/:id", (req, res) => {
-  const { id } = req.params;
 
-  const {
-    firstName,
-    lastName,
-    fullName,
-    username,
-    password,
-    mobile,
-    status,
-  } = req.body;
-
-  const cleanFullName =
-    fullName?.trim() ||
-    `${firstName?.trim() || ""} ${
-      lastName?.trim() || ""
-    }`.trim();
-
-  const cleanUsername =
-    username?.trim() || "";
-
-  const cleanMobile =
-    mobile?.trim() || null;
-
-  if (!cleanFullName) {
-    return res.status(400).json({
-      success: false,
-      message: "نام و نام خانوادگی الزامی است.",
-    });
+async function start() {
+  if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
+    throw new Error("JWT_SECRET must be configured with at least 32 characters.");
   }
-
-  if (!cleanUsername) {
-    return res.status(400).json({
-      success: false,
-      message: "نام کاربری الزامی است.",
-    });
-  }
-
-  // بررسی یکتا بودن نام کاربری برای سایر کاربران
-  db.get(
-    `
-    SELECT id
-    FROM users
-    WHERE username = ?
-      AND id != ?
-    `,
-    [cleanUsername, id],
-    (checkErr, existingUser) => {
-      if (checkErr) {
-        return res.status(500).json({
-          success: false,
-          message: checkErr.message,
-        });
-      }
-
-      if (existingUser) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "این نام کاربری قبلاً توسط کاربر دیگری استفاده شده است.",
-        });
-      }
-
-      let sql;
-      let params;
-
-      if (password) {
-        sql = `
-          UPDATE users
-          SET
-            fullName = ?,
-            username = ?,
-            password = ?,
-            mobile = ?,
-            status = ?
-          WHERE id = ?
-        `;
-
-        params = [
-          cleanFullName,
-          cleanUsername,
-          password,
-          cleanMobile,
-          status || "فعال",
-          id,
-        ];
-      } else {
-        sql = `
-          UPDATE users
-          SET
-            fullName = ?,
-            username = ?,
-            mobile = ?,
-            status = ?
-          WHERE id = ?
-        `;
-
-        params = [
-          cleanFullName,
-          cleanUsername,
-          cleanMobile,
-          status || "فعال",
-          id,
-        ];
-      }
-
-      db.run(sql, params, function (err) {
-        if (err) {
-          console.error(err);
-
-          return res.status(500).json({
-            success: false,
-            message: err.message,
-          });
-        }
-
-        res.json({
-          success: true,
-          message: "کاربر با موفقیت ویرایش شد.",
-        });
-      });
-    }
-  );
-});
-app.put("/api/users/:id/password", (req, res) => {
-  const { id } = req.params;
-  const { password } = req.body;
-
-  if (!password || password.length < 6) {
-    return res.status(400).json({
-      success: false,
-      message: "رمز عبور باید حداقل 6 کاراکتر باشد.",
-    });
-  }
-
-  db.run(
-    "UPDATE users SET password = ? WHERE id = ?",
-    [password, id],
-    function (err) {
-      if (err) {
-        console.error(err);
-
-        return res.status(500).json({
-          success: false,
-          message: err.message,
-        });
-      }
-
-      res.json({
-        success: true,
-        message: "رمز عبور با موفقیت تغییر کرد.",
-      });
-    }
-  );
-});
-app.post("/api/login", (req, res) => {
-  const { username, password } = req.body;
-
-  db.get(
-    "SELECT * FROM users WHERE username = ? AND password = ?",
-    [username, password],
-    (err, user) => {
-      if (err) {
-        return res.status(500).json({
-          success: false,
-          message: err.message,
-        });
-      }
-
-      if (!user) {
-        return res.status(401).json({
-          success: false,
-          message: "نام کاربری یا رمز عبور اشتباه است.",
-        });
-      }
-
-      res.json({
-        success: true,
-        role: user.role,
-        user,
-      });
-    }
-  );
-});
-
-app.get("/api/dashboard", (req, res) => {
-  db.get("SELECT COUNT(*) AS totalUsers FROM users", [], (err, users) => {
-    if (err) {
-      return res.status(500).json({
-        success: false,
-        message: err.message,
-      });
-    }
-app.get("/api/dashboard/rooms", (req, res) => {
-  db.all(
-    "SELECT title, teacher, time FROM rooms ORDER BY id DESC LIMIT 5",
-    [],
-    (err, rows) => {
-      if (err) {
-        return res.status(500).json({
-          success: false,
-          message: err.message,
-        });
-      }
-
-      res.json({
-        success: true,
-        data: rows,
-      });
-    }
-  );
-});
-    db.get("SELECT COUNT(*) AS totalRooms FROM rooms", [], (err, rooms) => {
-      if (err) {
-        return res.status(500).json({
-          success: false,
-          message: err.message,
-        });
-      }
-
-      db.get(
-        "SELECT COUNT(*) AS activeRooms FROM rooms",
-        [],
-        (err, active) => {
-          if (err) {
-            return res.status(500).json({
-              success: false,
-              message: err.message,
-            });
-          }
-
-          res.json({
-            success: true,
-            data: {
-              totalUsers: users.totalUsers,
-              totalRooms: rooms.totalRooms,
-              activeRooms: active.activeRooms,
-            },
-          });
-        }
-      );
-    });
+  await ready;
+  return app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
   });
-});
-app.delete("/api/rooms/members/:id", (req, res) => {
-  const { id } = req.params;
+}
 
-  db.run(
-    "DELETE FROM room_members WHERE id=?",
-    [id],
-    function (err) {
-      if (err) {
-        return res.status(500).json({
-          success: false,
-          message: err.message,
-        });
-      }
+if (require.main === module) {
+  start().catch((error) => {
+    console.error("Server startup failed:", error.message);
+    process.exit(1);
+  });
+}
 
-      res.json({
-        success: true,
-      });
-    }
-  );
-});
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+module.exports = { app, start };
