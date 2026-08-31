@@ -54,7 +54,6 @@ export default function EventMembersModal({
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(false);
   const [searching, setSearching] = useState(false);
-
   const [addingRole, setAddingRole] =
     useState<Role | null>(null);
 
@@ -96,8 +95,8 @@ export default function EventMembersModal({
       setLoading(true);
 
       const membersRes = await axios.get(
-  `http://localhost:5000/api/rooms/${room.id}/members`
-);
+        `http://localhost:5000/api/rooms/${room.id}/members`
+      );
 
       setMembers(membersRes.data.data || []);
     } catch (error) {
@@ -125,45 +124,49 @@ export default function EventMembersModal({
   }
 
   async function handleSearch(value: string) {
-  setSearch(value);
-  setSelectedUser(null);
+    setSearch(value);
+    setSelectedUser(null);
 
-  const text = value.trim();
+    const text = value.trim();
 
-  if (!text) {
-    setSearchResults([]);
-    return;
+    if (!text) {
+      setSearching(false);
+      setSearchResults([]);
+      return;
+    }
+
+    try {
+      setSearching(true);
+      console.log("SEARCH:", text);
+
+      const response = await axios.get(
+        "http://localhost:5000/api/users",
+        {
+          params: {
+            search: text,
+          },
+        }
+      );
+
+      console.log(
+        "SEARCH RESULT:",
+        response.data
+      );
+
+      setSearchResults(
+        response.data.data || []
+      );
+    } catch (error) {
+      console.error(
+        "SEARCH ERROR:",
+        error
+      );
+
+      setSearchResults([]);
+    } finally {
+      setSearching(false);
+    }
   }
-
-  try {
-    console.log("SEARCH:", text);
-
-    const response = await axios.get(
-      "http://localhost:5000/api/users",
-      {
-        params: {
-          search: text,
-        },
-      }
-    );
-
-    console.log(
-      "SEARCH RESULT:",
-      response.data
-    );
-
-    setSearchResults(
-      response.data.data || []
-    );
-  } catch (error) {
-    console.error(
-      "SEARCH ERROR:",
-      error
-    );
-
-    setSearchResults([]);
-  }
-}
 
   function getExistingMember(userId: number) {
     return members.find(

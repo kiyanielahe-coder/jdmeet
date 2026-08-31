@@ -1,4 +1,5 @@
 import "./Users.css";
+
 import {
   getUsers,
   createUser,
@@ -6,10 +7,12 @@ import {
   updateUser,
   changePassword,
 } from "../services/userService";
+
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import IconButton from "@mui/material/IconButton";
+
 import { useEffect, useState } from "react";
 import CreateUserModal from "../components/CreateUserModal";
 
@@ -22,29 +25,41 @@ type User = {
   className?: string;
   lastLogin?: string;
   createdAt?: string;
+  online?: boolean;
 };
 
 function Users() {
   const [open, setOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
-  const [search, setSearch] = useState("");
-const [statusFilter, setStatusFilter] = useState("همه");
-  const [users, setUsers] = useState<User[]>([]);
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-const [selectedUser, setSelectedUser] = useState<any>(null);
-const [passwordModalOpen, setPasswordModalOpen] = useState(false);
-const [newPassword, setNewPassword] = useState("");
-const handleMenuOpen = (
-  event: React.MouseEvent<HTMLElement>,
-  user: any
-) => {
-  setAnchorEl(event.currentTarget);
-  setSelectedUser(user);
-};
 
-const handleMenuClose = () => {
-  setAnchorEl(null);
-};
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("همه");
+
+  const [users, setUsers] = useState<User[]>([]);
+
+  const [anchorEl, setAnchorEl] =
+    useState<null | HTMLElement>(null);
+
+  const [selectedUser, setSelectedUser] =
+    useState<User | null>(null);
+
+  const [passwordModalOpen, setPasswordModalOpen] =
+    useState(false);
+
+  const [newPassword, setNewPassword] = useState("");
+
+  const handleMenuOpen = (
+    event: React.MouseEvent<HTMLElement>,
+    user: User
+  ) => {
+    setAnchorEl(event.currentTarget);
+    setSelectedUser(user);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+  };
+
   const fetchUsers = async () => {
     try {
       const data = await getUsers();
@@ -59,395 +74,473 @@ const handleMenuClose = () => {
   }, []);
 
   const filteredUsers = users.filter((user) => {
-  const keyword = search.toLowerCase();
+    const keyword = search.toLowerCase();
 
-  const matchSearch =
-  user.fullName?.toLowerCase().includes(keyword) ||
-  user.username?.toLowerCase().includes(keyword) ||
-  user.mobile?.includes(search) ||
-  user.status?.toLowerCase().includes(keyword);
+    const matchSearch =
+      user.fullName?.toLowerCase().includes(keyword) ||
+      user.username?.toLowerCase().includes(keyword) ||
+      user.mobile?.includes(search);
 
-  const matchStatus =
-    statusFilter === "همه" ||
-    (user.status ?? "فعال") === statusFilter;
+    const normalizedStatus =
+      user.status === "active"
+        ? "فعال"
+        : user.status === "inactive"
+        ? "غیرفعال"
+        : user.status || "فعال";
 
-return matchSearch && matchStatus;});
-    const handleCreateUser = async (user: any) => {
-  try {
-    if (editingUser) {
-      await updateUser(editingUser.id, user);
-    } else {
-      await createUser(user);
-    }
-await fetchUsers();
+    const matchStatus =
+      statusFilter === "همه" ||
+      normalizedStatus === statusFilter;
 
-setEditingUser(null);
-setOpen(false);
-  } catch (error: any) {
-  console.error(error);
+    return matchSearch && matchStatus;
+  });
 
-  alert(
-    error.response?.data?.message ||
-    "خطا در ایجاد یا ویرایش کاربر."
-  );
-}
-};
+  const totalUsers = users.length;
 
-  return (
-    <>
-      <h1
-        style={{
-          fontSize: 24,
-          fontWeight: 600,
-          marginBottom: 20,
-        }}
-      >
-        مدیریت کاربران
-      </h1>
-      <div
-  style={{
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 20,
-  }}
->
-  <div
-  style={{
-    display: "flex",
-    gap: 10,
-    alignItems: "center",
-  }}
->
-  <input
-    type="text"
-    placeholder="جستجوی کاربران..."
-    value={search}
-    onChange={(e) => setSearch(e.target.value)}
-    style={{
-      width: 280,
-      padding: "10px 14px",
-      border: "1px solid #d1d5db",
-      borderRadius: 8,
-    }}
-  />
+  const activeUsers = users.filter(
+    (user) =>
+      user.status === "فعال" ||
+      user.status === "active" ||
+      !user.status
+  ).length;
 
-  <select
-    value={statusFilter}
-    onChange={(e) => setStatusFilter(e.target.value)}
-    style={{
-      padding: "10px",
-      borderRadius: 8,
-      border: "1px solid #d1d5db",
-    }}
-  >
-    <option value="همه">همه وضعیت‌ها</option>
-    <option value="فعال">فعال</option>
-    <option value="غیرفعال">غیرفعال</option>
-  </select>
-</div>
+  const inactiveUsers = users.filter(
+    (user) =>
+      user.status === "غیرفعال" ||
+      user.status === "inactive"
+  ).length;
 
-  <button
-    onClick={() => {
-      setEditingUser(null);
-      setOpen(true);
-    }}
-    style={{
-      background: "#009693",
-      color: "#fff",
-      border: "none",
-      padding: "10px 18px",
-      borderRadius: 8,
-      cursor: "pointer",
-      fontWeight: 600,
-    }}
-  >
-    + افزودن کاربر
-  </button>
-</div>
+  /*
+    فعلاً آنلاین بودن را از فیلد online می‌خوانیم.
+    اگر بک‌اند این فیلد را نداشته باشد، مقدار صفر نمایش داده می‌شود.
+  */
+  const onlineUsers = users.filter(
+    (user) => user.online === true
+  ).length;
 
-      <CreateUserModal
-  open={open}
-  onClose={() => {
-    setOpen(false);
-    setEditingUser(null);
-  }}
-  onCreate={handleCreateUser}
-  editingUser={editingUser}
-/>
-<div
-  style={{
-    display: "flex",
-    gap: 20,
-    marginBottom: 20,
-  }}
->
-  <div
-    style={{
-      flex: 1,
-      background: "#fff",
-      padding: 20,
-      borderRadius: 12,
-      boxShadow: "0 4px 12px rgba(0,0,0,.08)",
-    }}
-  >
-    <div style={{ color: "#64748b", fontSize: 14 }}>
-      تعداد کاربران
-    </div>
-
-    <div
-      style={{
-        fontSize: 30,
-        fontWeight: "bold",
-        color: "#2563eb",
-      }}
-    >
-      {users.length}
-    </div>
-  </div>
-
-  <div
-    style={{
-      flex: 1,
-      background: "#fff",
-      padding: 20,
-      borderRadius: 12,
-      boxShadow: "0 4px 12px rgba(0,0,0,.08)",
-    }}
-  >
-    <div style={{ color: "#64748b", fontSize: 14 }}>
-      کاربران فعال
-    </div>
-
-    <div
-      style={{
-        fontSize: 30,
-        fontWeight: 600,
-        color: "#16a34a",
-      }}
-    >
-      {
-        users.filter(
-          (u) => (u.status ?? "فعال") === "فعال"
-        ).length
-      }
-    </div>
-  </div>
-
-  <div
-    style={{
-      flex: 1,
-      background: "#fff",
-      padding: 20,
-      borderRadius: 12,
-      boxShadow: "0 4px 12px rgba(0,0,0,.08)",
-    }}
-  >
-    <div style={{ color: "#64748b", fontSize: 14 }}>
-      کاربران غیرفعال
-    </div>
-
-    <div
-      style={{
-        fontSize: 30,
-        fontWeight: 600,
-        color: "#dc2626",
-      }}
-    >
-      {
-        users.filter(
-          (u) => (u.status ?? "فعال") !== "فعال"
-        ).length
-      }
-    </div>
-  </div>
-</div>
-     <div className="users-card">
-  <div className="users-card">
-  <table className="users-table">
-    <thead>
-      <tr>
-        <th>نام و نام خانوادگی</th>
-<th>نام کاربری</th>
-<th>شماره موبایل</th>
-<th>وضعیت</th>
-<th>عملیات</th>
-      </tr>
-    </thead>
-
-    <tbody>
-      {filteredUsers.map((user) => (
-        <tr key={user.id}>
-          <td>{user.fullName}</td>
-
-          <td>{user.mobile || "-"}</td>
-
-          <td>{user.username}</td>
-
-          <td>
-            <span
-              className={`status ${
-                user.status === "active" || user.status === "فعال"
-                  ? "active"
-                  : "inactive"
-              }`}
-            >
-              {user.status === "active"
-                ? "فعال"
-                : user.status === "inactive"
-                ? "غیرفعال"
-                : user.status}
-            </span>
-          </td>
-
-          <td className="center">
-            <IconButton onClick={(e) => handleMenuOpen(e, user)}>
-              <MoreVertIcon />
-            </IconButton>
-          </td>
-        </tr>
-      ))}
-    </tbody>
-  </table>
-</div>
-</div>
-
-<div>
-  تعداد کاربران: {filteredUsers.length}
-</div>
-      <Menu
-  anchorEl={anchorEl}
-  open={Boolean(anchorEl)}
-  onClose={handleMenuClose}
->
-  <MenuItem
-    onClick={() => {
-      setEditingUser(selectedUser);
-      setOpen(true);
-      handleMenuClose();
-    }}
-  >
-    ویرایش
-  </MenuItem>
-
-  <MenuItem
-    onClick={async () => {
-      if (!selectedUser) return;
-
-      console.log("Selected User:", selectedUser);
-      console.log("User ID:", selectedUser.id);
-
-      if (!window.confirm("آیا از حذف این کاربر مطمئن هستید؟")) {
-        handleMenuClose();
-        return;
-      }
-
-      try {
-        await deleteUser(selectedUser.id);
-
-        alert("کاربر با موفقیت حذف شد.");
-
-        await fetchUsers();
-
-        handleMenuClose();
-      } catch (error) {
-        console.error("Delete Error:", error);
-        alert("حذف کاربر انجام نشد.");
-      }
-    }}
-  >
-    حذف
-  </MenuItem>
-
-  <MenuItem
-  onClick={() => {
-    setPasswordModalOpen(true);
-    setNewPassword("");
-    handleMenuClose();
-  }}
->
-  تغییر رمز عبور
-</MenuItem>
-</Menu>
-{passwordModalOpen && (
-  <div
-    style={{
-      position: "fixed",
-      inset: 0,
-      background: "rgba(0,0,0,.4)",
-      display: "flex",
-      justifyContent: "center",
-      alignItems: "center",
-    }}
-  >
-    <div
-      style={{
-        width: 400,
-        background: "#fff",
-        borderRadius: 12,
-        padding: 25,
-      }}
-    >
-      <h3>تغییر رمز عبور</h3>
-
-      <input
-        type="password"
-        placeholder="رمز عبور جدید"
-        value={newPassword}
-        onChange={(e) => setNewPassword(e.target.value)}
-        style={{
-          width: "100%",
-          padding: 10,
-          marginTop: 20,
-          marginBottom: 20,
-        }}
-      />
-
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-        }}
-      >
-        <button
-  onClick={async () => {
-    if (!selectedUser) {
-      alert("کاربری انتخاب نشده است.");
-      return;
-    }
-
-    if (newPassword.length < 6) {
-      alert("رمز عبور باید حداقل 6 کاراکتر باشد.");
-      return;
-    }
-
+  const handleCreateUser = async (user: any) => {
     try {
-      await changePassword(selectedUser.id, newPassword);
+      if (editingUser) {
+        await updateUser(editingUser.id, user);
+      } else {
+        await createUser(user);
+      }
 
-      alert("رمز عبور با موفقیت تغییر کرد.");
+      await fetchUsers();
 
-      setPasswordModalOpen(false);
-      setNewPassword("");
-      setSelectedUser(null);
+      setEditingUser(null);
+      setOpen(false);
     } catch (error: any) {
       console.error(error);
 
       alert(
         error.response?.data?.message ||
-        "تغییر رمز عبور انجام نشد."
+          "خطا در ایجاد یا ویرایش کاربر."
       );
     }
-  }}
->
-  ذخیره
-</button>
+  };
+
+  return (
+    <>
+      <CreateUserModal
+        open={open}
+        onClose={() => {
+          setOpen(false);
+          setEditingUser(null);
+        }}
+        onCreate={handleCreateUser}
+        editingUser={editingUser}
+      />
+
+      {/* Header */}
+
+      <div className="users-page-header">
+        <div>
+          <h1 className="users-page-title">
+            مدیریت کاربران
+          </h1>
+
+          <p className="users-page-subtitle">
+            مدیریت کاربران، وضعیت حساب‌ها و دسترسی‌ها
+          </p>
+        </div>
+
+        <div className="users-page-actions">
+          <input
+            className="users-search-input"
+            type="text"
+            placeholder="جستجوی کاربر..."
+            value={search}
+            onChange={(e) =>
+              setSearch(e.target.value)
+            }
+          />
+
+          <select
+            className="users-filter-select"
+            value={statusFilter}
+            onChange={(e) =>
+              setStatusFilter(e.target.value)
+            }
+          >
+            <option value="همه">
+              همه وضعیت‌ها
+            </option>
+
+            <option value="فعال">
+              فعال
+            </option>
+
+            <option value="غیرفعال">
+              غیرفعال
+            </option>
+          </select>
+
+          <button
+            className="users-create-btn"
+            onClick={() => {
+              setEditingUser(null);
+              setOpen(true);
+            }}
+          >
+            + افزودن کاربر
+          </button>
+        </div>
       </div>
-    </div>
-  </div>
-)}
+
+      {/* Statistics */}
+
+      <div className="users-stats-grid">
+
+        <div className="users-stat-card">
+          <div className="users-stat-title">
+            تعداد کل کاربران
+          </div>
+
+          <div className="users-stat-value total">
+            {totalUsers}
+          </div>
+        </div>
+
+        <div className="users-stat-card">
+          <div className="users-stat-title">
+            کاربران آنلاین
+          </div>
+
+          <div className="users-stat-value online">
+            {onlineUsers}
+          </div>
+        </div>
+
+        <div className="users-stat-card">
+          <div className="users-stat-title">
+            کاربران فعال
+          </div>
+
+          <div className="users-stat-value active">
+            {activeUsers}
+          </div>
+        </div>
+
+        <div className="users-stat-card">
+          <div className="users-stat-title">
+            کاربران غیرفعال
+          </div>
+
+          <div className="users-stat-value inactive">
+            {inactiveUsers}
+          </div>
+        </div>
+
+      </div>
+
+      {/* Users Table */}
+
+      <div className="users-card">
+
+        <div className="users-card-header">
+          <div>
+            <h3>لیست کاربران</h3>
+
+            <span>
+              {filteredUsers.length} کاربر
+            </span>
+          </div>
+        </div>
+
+        <div className="users-table-wrapper">
+
+          <table className="users-table">
+
+            <thead>
+              <tr>
+                <th>نام و نام خانوادگی</th>
+                <th>نام کاربری</th>
+                <th>شماره موبایل</th>
+                <th>وضعیت</th>
+                <th>آخرین ورود</th>
+                <th>عملیات</th>
+              </tr>
+            </thead>
+
+            <tbody>
+
+              {filteredUsers.map((user) => {
+
+                const isActive =
+                  user.status === "فعال" ||
+                  user.status === "active" ||
+                  !user.status;
+
+                return (
+                  <tr key={user.id}>
+
+                    <td>
+                      <div className="user-name">
+                        {user.fullName || "-"}
+                      </div>
+                    </td>
+
+                    <td>
+                      <span className="username">
+                        {user.username || "-"}
+                      </span>
+                    </td>
+
+                    <td>
+                      {user.mobile || "-"}
+                    </td>
+
+                    <td>
+                      <span
+                        className={
+                          isActive
+                            ? "user-status active"
+                            : "user-status inactive"
+                        }
+                      >
+                        {isActive
+                          ? "فعال"
+                          : "غیرفعال"}
+                      </span>
+                    </td>
+
+                    <td>
+                      {user.lastLogin || "-"}
+                    </td>
+
+                    <td className="user-action-cell">
+
+                      <IconButton
+                        className="user-action-button"
+                        size="small"
+                        onClick={(e) =>
+                          handleMenuOpen(e, user)
+                        }
+                      >
+                        <MoreVertIcon fontSize="small" />
+                      </IconButton>
+
+                    </td>
+
+                  </tr>
+                );
+              })}
+
+              {filteredUsers.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={6}
+                    className="users-empty"
+                  >
+                    کاربری برای نمایش وجود ندارد.
+                  </td>
+                </tr>
+              )}
+
+            </tbody>
+
+          </table>
+
+        </div>
+
+      </div>
+
+      {/* Menu */}
+
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={handleMenuClose}
+      >
+
+        <MenuItem
+          onClick={() => {
+            if (!selectedUser) return;
+
+            setEditingUser(selectedUser);
+            setOpen(true);
+            handleMenuClose();
+          }}
+        >
+          ویرایش
+        </MenuItem>
+
+        <MenuItem
+          onClick={async () => {
+
+            if (!selectedUser) return;
+
+            if (
+              !window.confirm(
+                "آیا از حذف این کاربر مطمئن هستید؟"
+              )
+            ) {
+              handleMenuClose();
+              return;
+            }
+
+            try {
+
+              await deleteUser(
+                selectedUser.id
+              );
+
+              alert(
+                "کاربر با موفقیت حذف شد."
+              );
+
+              await fetchUsers();
+
+              handleMenuClose();
+
+            } catch (error) {
+
+              console.error(
+                "Delete Error:",
+                error
+              );
+
+              alert(
+                "حذف کاربر انجام نشد."
+              );
+            }
+
+          }}
+        >
+          حذف
+        </MenuItem>
+
+        <MenuItem
+          onClick={() => {
+
+            setPasswordModalOpen(true);
+            setNewPassword("");
+            handleMenuClose();
+
+          }}
+        >
+          تغییر رمز عبور
+        </MenuItem>
+
+      </Menu>
+
+      {/* Password Modal */}
+
+      {passwordModalOpen && (
+
+        <div className="password-modal-overlay">
+
+          <div className="password-modal">
+
+            <h3>
+              تغییر رمز عبور
+            </h3>
+
+            <input
+              type="password"
+              placeholder="رمز عبور جدید"
+              value={newPassword}
+              onChange={(e) =>
+                setNewPassword(
+                  e.target.value
+                )
+              }
+            />
+
+            <div className="password-modal-actions">
+
+              <button
+                className="password-cancel-btn"
+                onClick={() => {
+                  setPasswordModalOpen(false);
+                  setNewPassword("");
+                }}
+              >
+                انصراف
+              </button>
+
+              <button
+                className="password-save-btn"
+                onClick={async () => {
+
+                  if (!selectedUser) {
+                    alert(
+                      "کاربری انتخاب نشده است."
+                    );
+                    return;
+                  }
+
+                  if (
+                    newPassword.length < 6
+                  ) {
+                    alert(
+                      "رمز عبور باید حداقل 6 کاراکتر باشد."
+                    );
+                    return;
+                  }
+
+                  try {
+
+                    await changePassword(
+                      selectedUser.id,
+                      newPassword
+                    );
+
+                    alert(
+                      "رمز عبور با موفقیت تغییر کرد."
+                    );
+
+                    setPasswordModalOpen(false);
+                    setNewPassword("");
+                    setSelectedUser(null);
+
+                  } catch (error: any) {
+
+                    console.error(error);
+
+                    alert(
+                      error.response?.data
+                        ?.message ||
+                        "تغییر رمز عبور انجام نشد."
+                    );
+                  }
+
+                }}
+              >
+                ذخیره
+              </button>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      )}
+
     </>
   );
 }
 
 export default Users;
-  

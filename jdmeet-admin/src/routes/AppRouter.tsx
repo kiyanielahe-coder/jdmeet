@@ -8,6 +8,8 @@ import Dashboard from "../pages/Dashboard";
 import Classes from "../pages/Classes";
 import Users from "../pages/Users";
 import RoomSettings from "../pages/RoomSettings";
+import Reports from "../pages/Reports";
+import EventReports from "../pages/EventReports";
 import Meeting from "../pages/Meeting";
 
 function AppRouter() {
@@ -39,6 +41,11 @@ function AppRouter() {
           <Route path="/room-settings" element={<RoomSettings />} />
           <Route path="/meeting/:roomName" element={<Meeting />} />
           <Route path="/events/:id/members" element={<EventMembers />} />
+          <Route path="/reports" element={<Reports />} />
+          <Route
+  path="/reports/events"
+  element={<EventReports />}
+/>
           <Route
   path="/events/:id"
   element={<EventDetails />}
