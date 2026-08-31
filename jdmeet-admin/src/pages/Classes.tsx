@@ -12,7 +12,6 @@ import MoreVertIcon from "@mui/icons-material/MoreVert";
 import LaunchIcon from "@mui/icons-material/Launch";
 
 import CreateRoomModal from "../components/CreateRoomModal";
-import EventMembersModal from "../components/EventMembersModal";
 import "./Classes.css";
 import { isCurrentUserAdmin } from "../services/auth";
 
@@ -43,8 +42,6 @@ function Classes() {
 
   const [selectedRoom, setSelectedRoom] =
     useState<Room | null>(null);
-    const [membersOpen, setMembersOpen] =
-  useState(false);
 
 
   const openMenu = (
@@ -454,7 +451,7 @@ function Classes() {
       {isAdmin && <MenuItem
         onClick={() => {
           if (!selectedRoom) return;
-          setMembersOpen(true);
+          navigate(`/events/${selectedRoom.id}/members`);
           closeMenu();
         }}
       >
@@ -499,11 +496,6 @@ function Classes() {
       </MenuItem>}
 
     </Menu>
-<EventMembersModal
-      open={membersOpen}
-      room={selectedRoom}
-      onClose={() => setMembersOpen(false)}
-    />
   </>
 );
 

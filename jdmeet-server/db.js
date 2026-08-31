@@ -110,6 +110,23 @@ async function initializeDatabase() {
     )
   `);
 
+  const duplicateMemberships = await all(`
+    SELECT roomId, userId, COUNT(*) AS count
+    FROM event_members
+    GROUP BY roomId, userId
+    HAVING COUNT(*) > 1
+  `);
+
+  if (duplicateMemberships.length > 0) {
+    throw new Error(
+      "Duplicate event memberships must be resolved before creating the unique index."
+    );
+  }
+
+  await run(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_event_members_room_user
+    ON event_members(roomId, userId)
+  `);
   await ensureColumn("users", "mobile", "TEXT");
   await ensureColumn("users", "nationalCode", "TEXT");
   await ensureColumn("users", "role", "TEXT DEFAULT 'user'");

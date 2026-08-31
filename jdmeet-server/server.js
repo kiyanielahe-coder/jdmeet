@@ -11,6 +11,11 @@ const { db, ready } = require("./db");
 const app = express();
 const PORT = Number(process.env.PORT) || 5000;
 const USER_ROLES = new Set(["admin", "manager", "user"]);
+const EVENT_MEMBER_ROLES = new Set([
+  "manager",
+  "presenter",
+  "participant",
+]);
 
 app.use(cors());
 app.use(express.json());
@@ -449,52 +454,79 @@ app.post(
   authorizeRoles("admin"),
   asyncHandler(async (req, res) => {
     const { userId, role } = req.body;
-    const allowedRoles = new Set(["manager", "presenter", "participant"]);
-    if (!userId || !allowedRoles.has(role)) {
+
+    if (!userId || !EVENT_MEMBER_ROLES.has(role)) {
       return res.status(400).json({
         success: false,
         message: "کاربر و نقش معتبر الزامی هستند.",
       });
     }
 
+    const [room, user] = await Promise.all([
+      get("SELECT id FROM rooms WHERE id = ?", [req.params.id]),
+      get("SELECT id FROM users WHERE id = ?", [userId]),
+    ]);
+
+    if (!room || !user) {
+      return res.status(404).json({
+        success: false,
+        message: "رویداد یا کاربر پیدا نشد.",
+      });
+    }
+
     const existing = await get(
-      "SELECT id, role FROM event_members WHERE roomId = ? AND userId = ?",
+      "SELECT id FROM event_members WHERE roomId = ? AND userId = ?",
       [req.params.id, userId]
     );
     if (existing) {
-      return res.status(400).json({
+      return res.status(409).json({
         success: false,
         message: "این کاربر قبلاً عضو این رویداد است.",
       });
     }
 
+    try {
+      const result = await run(
+        "INSERT INTO event_members (roomId, userId, role) VALUES (?, ?, ?)",
+        [req.params.id, userId, role]
+      );
+      return res.json({
+        success: true,
+        id: result.lastID,
+        message: "عضو با موفقیت اضافه شد.",
+      });
+    } catch (error) {
+      if (
+        error.code === "SQLITE_CONSTRAINT" &&
+        String(error.message).includes("event_members.roomId")
+      ) {
+        return res.status(409).json({
+          success: false,
+          message: "این کاربر قبلاً عضو این رویداد است.",
+        });
+      }
+      throw error;
+    }
+  })
+);
+
+app.delete(
+  "/api/rooms/:roomId/members/:memberId",
+  authorizeRoles("admin"),
+  asyncHandler(async (req, res) => {
     const result = await run(
-      "INSERT INTO event_members (roomId, userId, role) VALUES (?, ?, ?)",
-      [req.params.id, userId, role]
+      "DELETE FROM event_members WHERE id = ? AND roomId = ?",
+      [req.params.memberId, req.params.roomId]
     );
-    res.json({
-      success: true,
-      id: result.lastID,
-      message: "عضو با موفقیت اضافه شد.",
-    });
-  })
-);
 
-app.delete(
-  "/api/event-members/:id",
-  authorizeRoles("admin"),
-  asyncHandler(async (req, res) => {
-    await run("DELETE FROM event_members WHERE id = ?", [req.params.id]);
-    res.json({ success: true });
-  })
-);
+    if (result.changes === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "عضو رویداد پیدا نشد.",
+      });
+    }
 
-app.delete(
-  "/api/rooms/members/:id",
-  authorizeRoles("admin"),
-  asyncHandler(async (req, res) => {
-    await run("DELETE FROM room_members WHERE id = ?", [req.params.id]);
-    res.json({ success: true });
+    return res.json({ success: true });
   })
 );
 
