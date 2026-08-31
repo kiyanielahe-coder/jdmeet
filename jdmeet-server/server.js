@@ -131,6 +131,26 @@ app.get(
   })
 );
 
+app.get(
+  "/api/rooms/:id",
+  asyncHandler(async (req, res) => {
+    const room = await get(
+      `SELECT id, name, title, teacher, date, time, type, status
+       FROM rooms WHERE id = ?`,
+      [req.params.id]
+    );
+
+    if (!room) {
+      return res.status(404).json({
+        success: false,
+        message: "رویداد پیدا نشد.",
+      });
+    }
+
+    return res.json({ success: true, data: room });
+  })
+);
+
 app.post(
   "/api/rooms",
   authorizeRoles("admin"),
@@ -183,38 +203,36 @@ app.put(
   "/api/rooms/:id",
   authorizeRoles("admin"),
   asyncHandler(async (req, res) => {
-    const {
-      name,
-      title,
-      teacher,
-      date,
-      time,
-      type,
-      password,
-      allowGuest,
-      guestCode,
-      memberAccess,
-      autoRecord,
-      status,
-    } = req.body;
+    const currentRoom = await get("SELECT * FROM rooms WHERE id = ?", [
+      req.params.id,
+    ]);
+
+    if (!currentRoom) {
+      return res.status(404).json({
+        success: false,
+        message: "رویداد پیدا نشد.",
+      });
+    }
+
+    const room = { ...currentRoom, ...req.body };
 
     await run(
       `UPDATE rooms SET name = ?, title = ?, teacher = ?, date = ?, time = ?,
        type = ?, password = ?, allowGuest = ?, guestCode = ?, memberAccess = ?,
        autoRecord = ?, status = ? WHERE id = ?`,
       [
-        name,
-        title,
-        teacher,
-        date,
-        time,
-        type,
-        password,
-        allowGuest ? 1 : 0,
-        guestCode,
-        memberAccess,
-        autoRecord ? 1 : 0,
-        status,
+        room.name,
+        room.title,
+        room.teacher,
+        room.date,
+        room.time,
+        room.type,
+        room.password,
+        room.allowGuest ? 1 : 0,
+        room.guestCode,
+        room.memberAccess,
+        room.autoRecord ? 1 : 0,
+        room.status,
         req.params.id,
       ]
     );
@@ -486,7 +504,8 @@ app.get(
     const users = await get("SELECT COUNT(*) AS totalUsers FROM users");
     const rooms = await get("SELECT COUNT(*) AS totalRooms FROM rooms");
     const active = await get(
-      "SELECT COUNT(*) AS activeRooms FROM rooms WHERE status IN ('فعال', 'active')"
+      `SELECT COUNT(*) AS activeRooms FROM rooms
+       WHERE LOWER(TRIM(COALESCE(status, ''))) IN ('فعال', 'active')`
     );
     res.json({
       success: true,
@@ -503,7 +522,8 @@ app.get(
   "/api/dashboard/rooms",
   asyncHandler(async (req, res) => {
     const rows = await all(
-      "SELECT title, teacher, time FROM rooms ORDER BY id DESC LIMIT 5"
+      `SELECT id, title, teacher, date, time, status
+       FROM rooms ORDER BY id DESC LIMIT 5`
     );
     res.json({ success: true, data: rows });
   })

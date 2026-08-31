@@ -1,5 +1,6 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "../services/api";
+import { useNavigate } from "react-router-dom";
 
 import Tooltip from "@mui/material/Tooltip";
 import IconButton from "@mui/material/IconButton";
@@ -29,6 +30,7 @@ type Room = {
 
 function Classes() {
   const isAdmin = isCurrentUserAdmin();
+  const navigate = useNavigate();
   const [rooms, setRooms] = useState<Room[]>([]);
   const [search, setSearch] = useState("");
 
@@ -284,10 +286,7 @@ function Classes() {
         <div
           className="event-name"
           onClick={() =>
-            window.open(
-              `https://lg.jdeiut.ir/${item.name}`,
-              "_blank"
-            )
+            navigate(`/events/${item.id}`)
           }
         >
           {item.title}
@@ -427,6 +426,17 @@ function Classes() {
         📋 کپی لینک
       </MenuItem>
 
+      <MenuItem
+        onClick={() => {
+          if (!selectedRoom) return;
+
+          navigate(`/events/${selectedRoom.id}`);
+          closeMenu();
+        }}
+      >
+        ℹ️ مشخصات رویداد
+      </MenuItem>
+
       {isAdmin && <Divider />}
 
       {isAdmin && <MenuItem
@@ -458,6 +468,7 @@ function Classes() {
       <MenuItem disabled>
         🎥 فایل‌های ضبط‌شده
       </MenuItem>
+
 
       {isAdmin && <Divider />}
 
