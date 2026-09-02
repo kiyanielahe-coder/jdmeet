@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../services/api";
+import { formatPersianDate, formatPersianTime } from "../utils/date";
 
 type DashboardSummary = {
   totalUsers: number;
@@ -174,8 +175,8 @@ function Dashboard() {
                 <tr key={room.id}>
                   <td style={{ padding: 12 }}>{room.title || "-"}</td>
                   <td style={{ padding: 12 }}>{room.teacher || "-"}</td>
-                  <td style={{ padding: 12 }}>{room.date || "-"}</td>
-                  <td style={{ padding: 12 }}>{room.time || "-"}</td>
+                  <td style={{ padding: 12 }}>{formatPersianDate(room.date)}</td>
+                  <td style={{ padding: 12 }}>{formatPersianTime(room.time)}</td>
                   <td style={{ padding: 12 }}>
                     <span
                       style={{

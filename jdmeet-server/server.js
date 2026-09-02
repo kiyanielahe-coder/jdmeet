@@ -113,7 +113,7 @@ async function getMeetingSettings() {
 function publicMeetingSettings(settings) {
   return {
     siteName: settings.siteName,
-    meetingDomain: settings.meetingDomain,
+    meetingDomain: normalizeMeetingDomain(settings.meetingDomain),
     allowGuest: Boolean(settings.allowGuest),
     autoRecord: Boolean(settings.autoRecord),
     startWithAudioMuted: Boolean(settings.startWithAudioMuted),
@@ -271,9 +271,9 @@ app.get(
     return res.json({
       success: true,
       data: {
-        roomName: room.name,
+        roomName: `jdmeet-room-${room.id}`,
         subject: room.title || room.name,
-        domain: settings.meetingDomain,
+        domain: normalizeMeetingDomain(settings.meetingDomain),
         siteName: settings.siteName,
         startWithAudioMuted: Boolean(settings.startWithAudioMuted),
         startWithVideoMuted: Boolean(settings.startWithVideoMuted),

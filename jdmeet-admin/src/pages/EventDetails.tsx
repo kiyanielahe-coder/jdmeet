@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { api } from "../services/api";
 import { isCurrentUserAdmin } from "../services/auth";
+import PersianDatePicker from "../components/PersianDatePicker";
 
 type RoomDetails = {
   id: number;
@@ -213,12 +214,10 @@ function EventDetails() {
 
           <div>
             <label style={{ fontWeight: 600 }}>تاریخ</label>
-            <input
-              type="date"
+            <PersianDatePicker
               value={room.date || ""}
               disabled={!isAdmin}
-              onChange={(event) => updateField("date", event.target.value)}
-              style={fieldStyle}
+              onChange={(value) => updateField("date", value)}
             />
           </div>
 

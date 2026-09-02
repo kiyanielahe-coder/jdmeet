@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import * as XLSX from "xlsx";
 import { api } from "../services/api";
+import PersianDatePicker from "../components/PersianDatePicker";
+import {
+  formatPersianDate,
+  formatPersianTime,
+  isDateWithinRange,
+} from "../utils/date";
 
 type Room = {
   id: number;
@@ -21,6 +27,8 @@ function EventReports() {
   const [teacher, setTeacher] = useState("");
   const [status, setStatus] = useState("");
   const [type, setType] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     api
@@ -28,9 +36,10 @@ function EventReports() {
       .then((response) => {
         setRooms(response.data.data || []);
       })
-      .catch((error) => {
-        console.error("Reports Error:", error);
-      });
+      .catch(() => {
+        setError("دریافت اطلاعات گزارش‌ها ناموفق بود.");
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   const teachers = useMemo(() => {
@@ -51,11 +60,7 @@ function EventReports() {
 
   const filteredRooms = useMemo(() => {
     return rooms.filter((room) => {
-      if (fromDate && room.date && room.date < fromDate) {
-        return false;
-      }
-
-      if (toDate && room.date && room.date > toDate) {
+      if (!isDateWithinRange(room.date, fromDate, toDate)) {
         return false;
       }
 
@@ -109,8 +114,8 @@ function EventReports() {
       "ردیف": index + 1,
       "نام رویداد": room.title || room.name,
       "مدرس": room.teacher || "-",
-      "تاریخ": room.date || "-",
-      "ساعت": room.time || "-",
+      "تاریخ": formatPersianDate(room.date),
+      "ساعت": formatPersianTime(room.time),
       "نوع": room.type || "-",
       "وضعیت":
         room.status === "active"
@@ -161,6 +166,26 @@ function EventReports() {
       >
         گزارش و بررسی وضعیت برگزاری رویدادها و جلسات
       </p>
+      {loading && (
+        <div style={{ padding: 24, color: "#64748b" }}>
+          در حال دریافت گزارش‌ها...
+        </div>
+      )}
+
+      {error && (
+        <div
+          role="alert"
+          style={{
+            padding: 16,
+            marginBottom: 20,
+            color: "#991b1b",
+            background: "#fee2e2",
+            borderRadius: 10,
+          }}
+        >
+          {error}
+        </div>
+      )}
 
       {/* آمار */}
       <div
@@ -281,20 +306,9 @@ function EventReports() {
               از تاریخ
             </label>
 
-            <input
-              type="date"
+            <PersianDatePicker
               value={fromDate}
-              onChange={(e) =>
-                setFromDate(e.target.value)
-              }
-              style={{
-                width: "100%",
-                padding: 10,
-                border: "1px solid #e2e8f0",
-                borderRadius: 9,
-                boxSizing: "border-box",
-                fontFamily: "inherit",
-              }}
+              onChange={setFromDate}
             />
           </div>
 
@@ -309,20 +323,9 @@ function EventReports() {
               تا تاریخ
             </label>
 
-            <input
-              type="date"
+            <PersianDatePicker
               value={toDate}
-              onChange={(e) =>
-                setToDate(e.target.value)
-              }
-              style={{
-                width: "100%",
-                padding: 10,
-                border: "1px solid #e2e8f0",
-                borderRadius: 9,
-                boxSizing: "border-box",
-                fontFamily: "inherit",
-              }}
+              onChange={setToDate}
             />
           </div>
 
@@ -575,11 +578,11 @@ function EventReports() {
                   </td>
 
                   <td style={{ padding: 14 }}>
-                    {room.date || "-"}
+                    {formatPersianDate(room.date)}
                   </td>
 
                   <td style={{ padding: 14 }}>
-                    {room.time || "-"}
+                    {formatPersianTime(room.time)}
                   </td>
 
                   <td style={{ padding: 14 }}>

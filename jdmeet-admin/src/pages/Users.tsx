@@ -1,5 +1,6 @@
 import "./Users.css";
 import { isCurrentUserAdmin } from "../services/auth";
+import { formatPersianDateTime } from "../utils/date";
 
 import {
   getUsers,
@@ -47,6 +48,8 @@ function Users() {
 
   const [passwordModalOpen, setPasswordModalOpen] =
     useState(false);
+  const [passwordUser, setPasswordUser] =
+    useState<User | null>(null);
 
   const [newPassword, setNewPassword] = useState("");
 
@@ -60,6 +63,7 @@ function Users() {
 
   const handleMenuClose = () => {
     setAnchorEl(null);
+    setSelectedUser(null);
   };
 
   const fetchUsers = async () => {
@@ -330,7 +334,7 @@ function Users() {
                     </td>
 
                     <td>
-                      {user.lastLogin || "-"}
+                      {formatPersianDateTime(user.lastLogin)}
                     </td>
 
                     {isAdmin && <td className="user-action-cell">
@@ -437,7 +441,9 @@ function Users() {
 
         <MenuItem
           onClick={() => {
+            if (!selectedUser) return;
 
+            setPasswordUser(selectedUser);
             setPasswordModalOpen(true);
             setNewPassword("");
             handleMenuClose();
@@ -451,7 +457,7 @@ function Users() {
 
       {/* Password Modal */}
 
-      {passwordModalOpen && (
+      {passwordModalOpen && passwordUser && (
 
         <div className="password-modal-overlay">
 
@@ -479,6 +485,7 @@ function Users() {
                 onClick={() => {
                   setPasswordModalOpen(false);
                   setNewPassword("");
+                  setPasswordUser(null);
                 }}
               >
                 انصراف
@@ -488,7 +495,7 @@ function Users() {
                 className="password-save-btn"
                 onClick={async () => {
 
-                  if (!selectedUser) {
+                  if (!passwordUser) {
                     alert(
                       "کاربری انتخاب نشده است."
                     );
@@ -507,7 +514,7 @@ function Users() {
                   try {
 
                     await changePassword(
-                      selectedUser.id,
+                      passwordUser.id,
                       newPassword
                     );
 
@@ -517,7 +524,7 @@ function Users() {
 
                     setPasswordModalOpen(false);
                     setNewPassword("");
-                    setSelectedUser(null);
+                    setPasswordUser(null);
 
                   } catch (error: any) {
 

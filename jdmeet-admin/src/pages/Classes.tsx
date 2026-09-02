@@ -14,6 +14,7 @@ import LaunchIcon from "@mui/icons-material/Launch";
 import CreateRoomModal from "../components/CreateRoomModal";
 import "./Classes.css";
 import { isCurrentUserAdmin } from "../services/auth";
+import { formatPersianDate, formatPersianTime } from "../utils/date";
 
 type Room = {
   id: number;
@@ -26,6 +27,14 @@ type Room = {
   type: string;
   status: string;
 };
+
+function openMeeting(roomName: string) {
+  window.open(
+    `/meeting/${encodeURIComponent(roomName)}`,
+    "_blank",
+    "noopener,noreferrer"
+  );
+}
 
 function Classes() {
   const isAdmin = isCurrentUserAdmin();
@@ -84,55 +93,39 @@ function Classes() {
       setEditingRoom(null);
     }}
     onCreate={async (room) => {
+      const payload = {
+        name: room.title.replace(/s+/g, "-").toLowerCase(),
+        title: room.title,
+        teacher: room.teacher,
+        date: room.date,
+        time: room.time,
+        type: room.type,
+        allowGuest: room.allowGuest,
+        guestCode: room.guestCode,
+        memberAccess: room.memberAccess,
+        autoRecord: room.autoRecord,
+        status: room.status,
+      };
+
       try {
         if (editingRoom) {
-          await api.put(
-            `/rooms/${editingRoom.id}`,
-            {
-              name: room.title.replace(/\s+/g, "-").toLowerCase(),
-              title: room.title,
-              teacher: room.teacher,
-              date: room.date,
-              time: room.time,
-              type: room.type,
-              password: room.password,
-              allowGuest: room.allowGuest,
-              guestCode: room.guestCode,
-              memberAccess: room.memberAccess,
-              autoRecord: room.autoRecord,
-              status: room.status,
-            }
-          );
+          await api.put(`/rooms/${editingRoom.id}`, {
+            ...payload,
+            ...(room.password ? { password: room.password } : {}),
+          });
         } else {
-          await api.post(
-            "/rooms",
-            {
-              name: room.title
-                .replace(/\s+/g, "-")
-                .toLowerCase(),
-              title: room.title,
-              teacher: room.teacher,
-              date: room.date,
-              time: room.time,
-              type: room.type,
-              password: room.password,
-              allowGuest: room.allowGuest,
-              guestCode: room.guestCode,
-              memberAccess: room.memberAccess,
-             autoRecord: room.autoRecord,
-             status: room.status,
-            }
-          );
+          await api.post("/rooms", {
+            ...payload,
+            password: room.password,
+          });
         }
 
         await loadRooms();
-
         setOpen(false);
         setEditingRoom(null);
       } catch (err) {
         console.log(err);
-      }
-    }}
+      }    }}
   />
 
   <div className="page-header">
@@ -302,11 +295,11 @@ function Classes() {
     </td>
 
     <td className="center">
-      {item.date}
+      {formatPersianDate(item.date)}
     </td>
 
     <td className="center">
-      {item.time}
+      {formatPersianTime(item.time)}
     </td>
 
     <td className="center">
@@ -352,7 +345,7 @@ function Classes() {
         <Tooltip title="ورود به جلسه">
 
           <IconButton
-            onClick={() => navigate(`/meeting/${encodeURIComponent(item.name)}`)}
+            onClick={() => openMeeting(item.name)}
           >
             <LaunchIcon />
           </IconButton>
@@ -391,7 +384,7 @@ function Classes() {
         onClick={() => {
           if (!selectedRoom) return;
 
-          navigate(`/meeting/${encodeURIComponent(selectedRoom.name)}`);
+          openMeeting(selectedRoom.name);
 
           closeMenu();
         }}

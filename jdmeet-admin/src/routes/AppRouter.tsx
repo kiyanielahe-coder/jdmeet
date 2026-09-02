@@ -33,12 +33,12 @@ function AppRouter() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/meeting/:roomName" element={<Meeting />} />
         <Route element={<Layout />}>
           <Route path="/" element={<Dashboard />} />
           <Route path="/classes" element={<Classes />} />
           <Route path="/users" element={<Users />} />
           <Route path="/room-settings" element={<RoomSettings />} />
-          <Route path="/meeting/:roomName" element={<Meeting />} />
           <Route path="/events/:id/members" element={<EventMembers />} />
           <Route path="/reports" element={<Reports />} />
           <Route

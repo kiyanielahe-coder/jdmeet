@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { api } from "../services/api";
+import { formatPersianDate, formatPersianTime } from "../utils/date";
 import { isCurrentUserAdmin } from "../services/auth";
 
 const EVENT_MEMBER_ROLES = [
@@ -202,8 +203,8 @@ function EventMembers() {
           اعضای رویداد
         </h1>
         <div style={{ color: "#64748b" }}>
-          {room.title} — {room.teacher || "بدون مدرس"} — {room.date || "-"}{" "}
-          {room.time || ""}
+          {room.title} — {room.teacher || "بدون مدرس"} — {formatPersianDate(room.date)}{" "}
+          {formatPersianTime(room.time, "")}
         </div>
         {!isAdmin && (
           <div style={{ color: "#64748b", marginTop: 8 }}>
