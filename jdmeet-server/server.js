@@ -8,6 +8,7 @@ const express = require("express");
 const jwt = require("jsonwebtoken");
 const { authenticate, authorizeRoles } = require("./auth");
 const { db, ready } = require("./db");
+const { parseUserAgent } = require("./userAgent");
 
 const app = express();
 const PORT = Number(process.env.PORT) || 5000;
@@ -298,6 +299,121 @@ app.get(
     });
   })
 );
+
+app.post(
+  "/api/meetings/:roomName/connections",
+  asyncHandler(async (req, res) => {
+    const clientSessionId = String(req.body.clientSessionId || "").trim();
+    if (!/^[0-9a-f-]{36}$/i.test(clientSessionId)) {
+      return res.status(400).json({ success: false, message: "شناسه اتصال معتبر نیست." });
+    }
+
+    const room = await get("SELECT id FROM rooms WHERE name = ?", [req.params.roomName]);
+    if (!room) {
+      return res.status(404).json({ success: false, message: "رویداد پیدا نشد." });
+    }
+
+    const existing = await get(
+      `SELECT id FROM meeting_connections
+       WHERE clientSessionId = ? AND userId = ? AND roomId = ?`,
+      [clientSessionId, req.auth.sub, room.id]
+    );
+    if (existing) return res.json({ success: true, id: existing.id, duplicate: true });
+
+    const userAgent = req.get("user-agent") || null;
+    const parsed = parseUserAgent(userAgent || "");
+    const result = await run(
+      `INSERT INTO meeting_connections
+       (clientSessionId, userId, roomId, ipAddress, userAgent, browser,
+        browserVersion, deviceType, os, osVersion)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        clientSessionId,
+        req.auth.sub,
+        room.id,
+        req.ip || null,
+        userAgent,
+        parsed.browser,
+        parsed.browserVersion,
+        parsed.deviceType,
+        parsed.os,
+        parsed.osVersion,
+      ]
+    );
+    return res.status(201).json({ success: true, id: result.lastID });
+  })
+);
+
+app.post(
+  "/api/meetings/connections/:clientSessionId/leave",
+  asyncHandler(async (req, res) => {
+    const result = await run(
+      `UPDATE meeting_connections
+       SET leftAt = CURRENT_TIMESTAMP,
+           durationSeconds = MAX(0, CAST(strftime('%s', CURRENT_TIMESTAMP) AS INTEGER) -
+             CAST(strftime('%s', joinedAt) AS INTEGER))
+       WHERE clientSessionId = ? AND userId = ? AND leftAt IS NULL`,
+      [req.params.clientSessionId, req.auth.sub]
+    );
+    return res.json({ success: true, updated: result.changes === 1 });
+  })
+);
+
+app.get(
+  "/api/reports/users",
+  authorizeRoles("admin"),
+  asyncHandler(async (req, res) => {
+    const conditions = [];
+    const params = [];
+    const search = String(req.query.search || "").trim();
+    if (search) {
+      conditions.push("(u.fullName LIKE ? OR u.username LIKE ? OR u.mobile LIKE ?)");
+      const term = `%${search}%`;
+      params.push(term, term, term);
+    }
+    if (req.query.roomId) {
+      conditions.push("mc.roomId = ?");
+      params.push(req.query.roomId);
+    }
+    if (req.query.userId) {
+      conditions.push("mc.userId = ?");
+      params.push(req.query.userId);
+    }
+    if (req.query.from) {
+      conditions.push("mc.joinedAt >= ?");
+      params.push(String(req.query.from));
+    }
+    if (req.query.to) {
+      conditions.push("mc.joinedAt < datetime(?, '+1 day')");
+      params.push(String(req.query.to));
+    }
+    const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+    const rows = await all(
+      `SELECT mc.id, mc.userId, mc.roomId, mc.joinedAt, mc.leftAt,
+              mc.durationSeconds, mc.ipAddress, mc.userAgent, mc.browser,
+              mc.browserVersion, mc.deviceType, mc.os, mc.osVersion,
+              u.fullName, u.username, u.mobile,
+              COALESCE(r.title, r.name) AS eventName,
+              (SELECT COALESCE(SUM(total.durationSeconds), 0)
+               FROM meeting_connections total
+               WHERE total.userId = mc.userId AND total.roomId = mc.roomId
+                 AND total.leftAt IS NOT NULL
+              ) AS totalDurationSeconds
+       FROM meeting_connections mc
+       JOIN users u ON u.id = mc.userId
+       JOIN rooms r ON r.id = mc.roomId
+       ${where}
+       ORDER BY mc.joinedAt DESC, mc.id DESC`,
+      params
+    );
+    const [rooms, users] = await Promise.all([
+      all("SELECT id, COALESCE(title, name) AS name FROM rooms ORDER BY id DESC"),
+      all("SELECT id, fullName, username FROM users ORDER BY fullName ASC"),
+    ]);
+    return res.json({ success: true, data: rows, filters: { rooms, users } });
+  })
+);
+
 app.get(
   "/api/rooms",
   asyncHandler(async (req, res) => {

@@ -1,7 +1,8 @@
 import { JitsiMeeting } from "@jitsi/react-sdk";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { api } from "../services/api";
+import { getAuthToken } from "../services/auth";
 
 type MeetingConfig = {
   roomName: string;
@@ -24,6 +25,30 @@ function Meeting() {
   const [apiReady, setApiReady] = useState(false);
   const [conferenceJoined, setConferenceJoined] = useState(false);
   const [connectionSlow, setConnectionSlow] = useState(false);
+  const sessionId = useRef<string | null>(null);
+  const sessionClosed = useRef(false);
+
+  const closeConnection = () => {
+    if (!sessionId.current || sessionClosed.current) return;
+    const closingSessionId = sessionId.current;
+    sessionClosed.current = true;
+    sessionId.current = null;
+    const token = getAuthToken();
+    void fetch(`/api/meetings/connections/${encodeURIComponent(closingSessionId)}/leave`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      keepalive: true,
+    }).catch(() => undefined);
+  };
+
+  useEffect(() => {
+    const handlePageHide = () => closeConnection();
+    window.addEventListener("pagehide", handlePageHide);
+    return () => {
+      window.removeEventListener("pagehide", handlePageHide);
+      closeConnection();
+    };
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -160,7 +185,15 @@ function Meeting() {
 
           externalApi.on("videoConferenceJoined", () => {
             setConferenceJoined(true);
+            if (!sessionId.current && roomName) {
+              sessionId.current = crypto.randomUUID();
+              sessionClosed.current = false;
+              void api.post(`/meetings/${encodeURIComponent(roomName)}/connections`, {
+                clientSessionId: sessionId.current,
+              }).catch(() => { sessionId.current = null; });
+            }
           });
+          externalApi.on("videoConferenceLeft", closeConnection);
           externalApi.on("errorOccurred", () => {
             setConnectionSlow(true);
           });

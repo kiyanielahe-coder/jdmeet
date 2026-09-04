@@ -53,12 +53,13 @@ function Reports() {
         </div>
 
         <div
+          onClick={() => navigate("/reports/users")}
           style={{
             background: "#fff",
             padding: 30,
             borderRadius: 18,
             boxShadow: "0 4px 18px rgba(15,23,42,.06)",
-            opacity: 0.65,
+            cursor: "pointer",
           }}
         >
           <div style={{ fontSize: 40, marginBottom: 15 }}>👥</div>
@@ -72,18 +73,18 @@ function Reports() {
 
           <button
             type="button"
-            disabled
+            onClick={() => navigate("/reports/users")}
             style={{
               marginTop: 15,
-              background: "#94a3b8",
+              background: "#009693",
               color: "#fff",
               border: "none",
               borderRadius: 10,
               padding: "12px 20px",
-              cursor: "not-allowed",
+              cursor: "pointer",
             }}
           >
-            به‌زودی
+            مشاهده گزارش
           </button>
         </div>
       </div>

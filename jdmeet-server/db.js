@@ -125,6 +125,33 @@ async function initializeDatabase() {
   `);
 
   await run(`
+    CREATE TABLE IF NOT EXISTS meeting_connections (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      clientSessionId TEXT UNIQUE NOT NULL,
+      userId INTEGER NOT NULL,
+      roomId INTEGER NOT NULL,
+      joinedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      leftAt TEXT,
+      durationSeconds INTEGER,
+      ipAddress TEXT,
+      userAgent TEXT,
+      browser TEXT,
+      browserVersion TEXT,
+      deviceType TEXT,
+      os TEXT,
+      osVersion TEXT,
+      FOREIGN KEY(userId) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY(roomId) REFERENCES rooms(id) ON DELETE CASCADE,
+      CHECK (durationSeconds IS NULL OR durationSeconds >= 0)
+    )
+  `);
+
+  await run(`
+    CREATE INDEX IF NOT EXISTS idx_meeting_connections_report
+    ON meeting_connections(roomId, userId, joinedAt)
+  `);
+
+  await run(`
     INSERT OR IGNORE INTO meeting_settings (id, siteName, meetingDomain)
     VALUES (1, 'JDMeet', 'lg.jdeiut.ir')
   `);

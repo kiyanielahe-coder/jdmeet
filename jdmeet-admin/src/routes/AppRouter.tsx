@@ -1,7 +1,7 @@
 import EventDetails from "../pages/EventDetails";
 import Login from "../pages/Login";
 import { useEffect, useState } from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Navigate, Routes, Route } from "react-router-dom";
 import Layout from "../components/Layout";
 import EventMembers from "../pages/EventMembers";
 import Dashboard from "../pages/Dashboard";
@@ -11,10 +11,12 @@ import RoomSettings from "../pages/RoomSettings";
 import Reports from "../pages/Reports";
 import EventReports from "../pages/EventReports";
 import Meeting from "../pages/Meeting";
-import { clearAuthSession, hasValidAuthSession } from "../services/auth";
+import UserReports from "../pages/UserReports";
+import { clearAuthSession, getAuthUser, hasValidAuthSession } from "../services/auth";
 
 function AppRouter() {
   const [isLoggedIn, setIsLoggedIn] = useState(hasValidAuthSession);
+  const isAdmin = getAuthUser()?.role === "admin";
   useEffect(() => {
     if (!hasValidAuthSession()) {
       clearAuthSession();
@@ -44,6 +46,10 @@ function AppRouter() {
           <Route
   path="/reports/events"
   element={<EventReports />}
+/>
+          <Route
+  path="/reports/users"
+  element={isAdmin ? <UserReports /> : <Navigate to="/reports" replace />}
 />
           <Route
   path="/events/:id"
