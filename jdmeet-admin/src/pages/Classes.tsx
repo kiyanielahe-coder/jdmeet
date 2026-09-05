@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { api } from "../services/api";
 import { useNavigate } from "react-router-dom";
 
@@ -29,13 +29,14 @@ type Room = {
 };
 
 function openMeeting(roomName: string) {
+  const meetingUrl = `https://lg.jdeiut.ir/${encodeURIComponent(roomName)}`;
+
   window.open(
-    `/meeting/${encodeURIComponent(roomName)}`,
+    meetingUrl,
     "_blank",
     "noopener,noreferrer"
   );
 }
-
 function Classes() {
   const isAdmin = isCurrentUserAdmin();
   const navigate = useNavigate();
